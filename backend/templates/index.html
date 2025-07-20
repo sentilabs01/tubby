@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Communication Platform</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+        }
+        
+        .terminal {
+            background-color: #000000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            height: 400px;
+            width: 100%;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            resize: both;
+            min-height: 200px;
+            min-width: 300px;
+            max-height: 800px;
+            max-width: 100%;
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            cursor: text;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .terminal::-moz-selection {
+            background-color: #3B82F6;
+            color: white;
+        }
+
+        .terminal::selection {
+            background-color: #3B82F6;
+            color: white;
+        }
+        
+        .terminal-container {
+            position: relative;
+            cursor: move;
+            user-select: none;
+        }
+        
+        /* Allow text selection in terminal content */
+        .terminal-content {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+        }
+        
+        /* Ensure terminal text is selectable */
+        .terminal {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            cursor: text;
+        }
+        
+        /* Prevent dragging when text is selected */
+        .terminal-container.selecting {
+            cursor: text;
+        }
+        
+        .terminal-container.selecting .terminal-header {
+            cursor: text;
+        }
+        
+        /* Ensure input fields are not affected by drag */
+        .terminal-container input,
+        .terminal-container button {
+            user-select: text;
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+        }
+        
+        .terminal-header {
+            background-color: #111;
+            padding: 8px 12px;
+            border-bottom: 1px solid #333;
+            border-radius: 5px 5px 0 0;
+            cursor: move;
+            font-weight: 600;
+            color: #fff;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            position: relative;
+        }
+        
+        .terminal-header::before {
+            content: "⋮⋮";
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 12px;
+            pointer-events: none;
+        }
+        
+        .terminal-content {
+            background-color: #000000;
+            border-radius: 0 0 5px 5px;
+        }
+        
+        .bg-gray-800 {
+            background-color: #111111 !important;
+            border: 1px solid #333;
+        }
+        
+        .bg-gray-700 {
+            background-color: #222222 !important;
+        }
+        
+        .bg-gray-900 {
+            background-color: #000000 !important;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-running { background-color: #10b981; }
+        .status-stopped { background-color: #ef4444; }
+        .status-unknown { background-color: #f59e0b; }
+        
+        /* Resize handle */
+        .resize-handle {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            cursor: se-resize;
+            background: linear-gradient(135deg, transparent 50%, #666 50%);
+            border-radius: 2px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .resize-handle:hover {
+            opacity: 1;
+            background: linear-gradient(135deg, transparent 50%, #888 50%);
+        }
+        
+        .terminal-container {
+            position: relative;
+            cursor: move;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        
+        .terminal-container:hover .resize-handle {
+            opacity: 1;
+        }
+        
+        /* Dragging styles */
+        .dragging {
+            opacity: 0.8;
+            z-index: 1000;
+        }
+        
+        .terminal-container.dragging {
+            transform: rotate(2deg);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">AI Agent Communication Platform</h1>
+        
+        <!-- Container Status -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">
+                    <span id="gemini-1-status" class="status-indicator status-unknown"></span>
+                    Gemini CLI 1
+                </h3>
+                <p id="gemini-1-status-text" class="text-gray-400">Checking status...</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">
+                    <span id="gemini-2-status" class="status-indicator status-unknown"></span>
+                    Gemini CLI 2
+                </h3>
+                <p id="gemini-2-status-text" class="text-gray-400">Checking status...</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h3 class="text-lg font-semibold mb-2">
+                    <span id="redis-status" class="status-indicator status-unknown"></span>
+                    Redis
+                </h3>
+                <p id="redis-status-text" class="text-gray-400">Checking status...</p>
+            </div>
+        </div>
+        
+        <!-- Spawn Terminal Button -->
+        <div class="mb-6">
+            <button id="spawn-terminal-btn" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center">
+                <span class="mr-2">➕</span>
+                Spawn New Gemini Terminal
+            </button>
+        </div>
+
+        <!-- Terminal Interface -->
+        <div id="terminal-grid" class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Gemini CLI Terminal 1 -->
+            <div id="gemini-1-container" class="terminal-container bg-gray-800 rounded-lg" draggable="true">
+                <div class="terminal-header">
+                    <span>🤖 Gemini CLI Terminal 1 (AI Assistant)</span>
+                </div>
+                <div class="terminal-content p-4">
+                    <div id="gemini-1-terminal" class="terminal mb-4"></div>
+                    <div class="flex">
+                        <input type="text" id="gemini-1-input" placeholder="Enter gemini command..." 
+                               class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l border border-gray-600">
+                        <button onclick="executeCommand('gemini-1')" 
+                                class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-r">
+                            Execute
+                        </button>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Gemini CLI Terminal 2 -->
+            <div id="gemini-2-container" class="terminal-container bg-gray-800 rounded-lg" draggable="true">
+                <div class="terminal-header">
+                    <span>🤖 Gemini CLI Terminal 2 (AI Assistant)</span>
+                </div>
+                <div class="terminal-content p-4">
+                    <div id="gemini-2-terminal" class="terminal mb-4"></div>
+                    <div class="flex">
+                        <input type="text" id="gemini-2-input" placeholder="Enter gemini command..." 
+                               class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l border border-gray-600">
+                        <button onclick="executeCommand('gemini-2')" 
+                                class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-r">
+                            Execute
+                        </button>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+
+
+            <!-- System Terminal -->
+            <div id="system-container" class="terminal-container bg-gray-800 rounded-lg" draggable="true">
+                <div class="terminal-header">
+                    <span>💻 System Terminal (npm, git, system commands)</span>
+                    <p class="text-xs text-yellow-400 mt-1">⚠️ Use for system commands ONLY. Do NOT install AI tools here!</p>
+                </div>
+                <div class="terminal-content p-4">
+                    <div id="system-terminal" class="terminal mb-4"></div>
+                    <div class="flex">
+                        <input type="text" id="system-input" placeholder="Enter system command..." 
+                               class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l border border-gray-600">
+                        <button onclick="executeCommand('system')" 
+                                class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-r">
+                            Execute
+                        </button>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+            
+            <!-- Collaborative Workspace -->
+            <div id="workspace-container" class="terminal-container bg-gray-800 rounded-lg" draggable="true">
+                <div class="terminal-header">
+                    <span>🤝 Collaborative Workspace (Redis)</span>
+                    <p class="text-xs text-blue-400 mt-1">💡 Upload code, create tasks, collaborate with AI terminals</p>
+                </div>
+                <div class="terminal-content p-4">
+                    <div id="workspace-terminal" class="terminal mb-4"></div>
+                    
+                    <!-- Workspace Controls -->
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button onclick="showFileUpload()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">
+                            📁 Upload File
+                        </button>
+                        <button onclick="showTaskCreation()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded">
+                            📋 Create Task
+                        </button>
+                        <button onclick="listWorkspaceFiles()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded">
+                            📂 List Files
+                        </button>
+                        <button onclick="listTasks()" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded">
+                            📊 View Tasks
+                        </button>
+                    </div>
+                    
+                    <!-- File Upload Modal -->
+                    <div id="file-upload-modal" class="hidden bg-gray-900 p-4 rounded-lg mb-4">
+                        <h3 class="text-lg font-semibold mb-2">Upload File to Workspace</h3>
+                        <input type="text" id="file-name-input" placeholder="File name (e.g., app.js)" 
+                               class="w-full bg-gray-700 text-white px-3 py-2 rounded mb-2">
+                        <textarea id="file-content-input" placeholder="Paste your code here..." 
+                                  class="w-full bg-gray-700 text-white px-3 py-2 rounded mb-2 h-32"></textarea>
+                        <div class="flex gap-2">
+                            <button onclick="uploadFile()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                                Upload
+                            </button>
+                            <button onclick="hideFileUpload()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Task Creation Modal -->
+                    <div id="task-creation-modal" class="hidden bg-gray-900 p-4 rounded-lg mb-4">
+                        <h3 class="text-lg font-semibold mb-2">Create Collaborative Task</h3>
+                        <input type="text" id="task-name-input" placeholder="Task name" 
+                               class="w-full bg-gray-700 text-white px-3 py-2 rounded mb-2">
+                        <textarea id="task-description-input" placeholder="Task description..." 
+                                  class="w-full bg-gray-700 text-white px-3 py-2 rounded mb-2 h-20"></textarea>
+                        <div class="mb-2">
+                            <label class="text-sm text-gray-300">Assign to terminals:</label>
+                            <div class="flex gap-2 mt-1">
+                                <label class="flex items-center">
+                                    <input type="checkbox" value="gemini-1" class="mr-1"> Gemini-1
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" value="gemini-2" class="mr-1"> Gemini-2
+                                </label>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="createTask()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                Create Task
+                            </button>
+                            <button onclick="hideTaskCreation()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // Initialize terminals
+        const terminals = {
+            'gemini-1': document.getElementById('gemini-1-terminal'),
+            'gemini-2': document.getElementById('gemini-2-terminal'),
+            system: document.getElementById('system-terminal')
+        };
+
+        // Initialize inputs
+        const inputs = {
+            'gemini-1': document.getElementById('gemini-1-input'),
+            'gemini-2': document.getElementById('gemini-2-input'),
+            system: document.getElementById('system-input')
+        };
+
+        // Command history for each terminal
+        const commandHistory = {
+            'gemini-1': [],
+            'gemini-2': [],
+            system: []
+        };
+
+        // Current history index for each terminal
+        const historyIndex = {
+            'gemini-1': -1,
+            'gemini-2': -1,
+            system: -1
+        };
+
+        // Add initial messages with helpful tips
+        terminals['gemini-1'].innerHTML = `
+            <div class="text-gray-400">Gemini CLI Terminal 1 ready...</div>
+            <div class="text-gray-500 mt-2">💡 <strong>Gemini CLI commands:</strong></div>
+            <div class="text-gray-500">Try: gemini --help</div>
+            <div class="text-gray-500">Try: gemini chat "Hello"</div>
+            <div class="text-gray-500">Try: gemini --prompt "Explain quantum computing"</div>
+            <div class="text-gray-500 mt-2">🔗 <strong>MCP Communication:</strong> Use @gemini-2 or @gemini-3 to send messages</div>
+            <div class="text-gray-500 mt-2">⌨️ <strong>Keyboard Shortcuts:</strong> ↑↓ for history, Ctrl+C/V for copy/paste</div>
+            <div class="text-gray-500 mt-2">❌ <strong>Don't use:</strong> npm, npx, git, or system commands here</div>
+        `;
+        terminals['gemini-2'].innerHTML = `
+            <div class="text-gray-400">Gemini CLI Terminal 2 ready...</div>
+            <div class="text-gray-500 mt-2">💡 <strong>Gemini CLI commands:</strong></div>
+            <div class="text-gray-500">Try: gemini --help</div>
+            <div class="text-gray-500">Try: gemini chat "Hello"</div>
+            <div class="text-gray-500">Try: gemini --prompt "Explain quantum computing"</div>
+            <div class="text-gray-500 mt-2">🔗 <strong>MCP Communication:</strong> Use @gemini-1 or @gemini-3 to send messages</div>
+            <div class="text-gray-500 mt-2">⌨️ <strong>Keyboard Shortcuts:</strong> ↑↓ for history, Ctrl+C/V for copy/paste</div>
+            <div class="text-gray-500 mt-2">❌ <strong>Don't use:</strong> npm, npx, git, or system commands here</div>
+        `;
+
+        terminals.system.innerHTML = `
+            <div class="text-gray-400">System terminal ready...</div>
+            <div class="text-gray-500 mt-2">💡 <strong>System commands:</strong></div>
+            <div class="text-gray-500">Try: ls</div>
+            <div class="text-gray-500">Try: pwd</div>
+            <div class="text-gray-500">Try: echo "Hello World"</div>
+            <div class="text-gray-500">Try: npm --version</div>
+            <div class="text-gray-500">Try: node --version</div>
+            <div class="text-gray-500 mt-2">⌨️ <strong>Keyboard Shortcuts:</strong> ↑↓ for history, Ctrl+C/V for copy/paste</div>
+            <div class="text-gray-500 mt-2">✅ <strong>Use here:</strong> npm, npx, git, and all system commands</div>
+            <div class="text-yellow-400 mt-2">⚠️ <strong>Do NOT install AI tools here!</strong> Use the AI terminals instead.</div>
+        `;
+
+        function executeCommand(terminalType) {
+            const input = inputs[terminalType];
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            // Add command to history
+            addToHistory(terminalType, command);
+            
+            // Check for MCP communication
+            if (command.includes('@')) {
+                console.log('Detected MCP command:', command);
+                handleMCPCommunication(terminalType, command);
+                input.value = '';
+                return;
+            }
+            
+            // Add command to terminal
+            addToTerminal(terminalType, `$ ${command}`, 'command');
+            
+            // Send command to server
+            socket.emit('execute_command', {
+                command: command,
+                terminal: terminalType
+            });
+            
+            // Clear input
+            input.value = '';
+        }
+
+        function addToHistory(terminalType, command) {
+            // Don't add empty commands or duplicate consecutive commands
+            if (!command || (commandHistory[terminalType].length > 0 && 
+                commandHistory[terminalType][commandHistory[terminalType].length - 1] === command)) {
+                return;
+            }
+            
+            commandHistory[terminalType].push(command);
+            // Keep only last 50 commands
+            if (commandHistory[terminalType].length > 50) {
+                commandHistory[terminalType].shift();
+            }
+            historyIndex[terminalType] = commandHistory[terminalType].length;
+        }
+
+        function navigateHistory(terminalType, direction) {
+            const input = inputs[terminalType];
+            const history = commandHistory[terminalType];
+            
+            if (history.length === 0) return;
+            
+            if (direction === 'up') {
+                if (historyIndex[terminalType] > 0) {
+                    historyIndex[terminalType]--;
+                    input.value = history[historyIndex[terminalType]];
+                }
+            } else if (direction === 'down') {
+                if (historyIndex[terminalType] < history.length - 1) {
+                    historyIndex[terminalType]++;
+                    input.value = history[historyIndex[terminalType]];
+                } else if (historyIndex[terminalType] === history.length - 1) {
+                    historyIndex[terminalType]++;
+                    input.value = ''; // Clear input when going past the most recent command
+                }
+            }
+            
+            // Move cursor to end of input
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+
+        function handleMCPCommunication(sourceTerminal, command) {
+            console.log('Handling MCP communication:', command);
+            
+            // Parse multiple @target message formats
+            const mcpCommands = [];
+            
+            // Split by @ and process each part
+            const parts = command.split('@');
+            console.log('Split parts:', parts);
+            
+            for (let i = 1; i < parts.length; i++) {
+                const part = parts[i].trim();
+                const spaceIndex = part.indexOf(' ');
+                
+                if (spaceIndex > 0) {
+                    const target = part.substring(0, spaceIndex);
+                    const message = part.substring(spaceIndex + 1).trim();
+                    
+                    console.log('Found MCP command:', target, message);
+                    mcpCommands.push({
+                        target: target,
+                        message: message
+                    });
+                }
+            }
+            
+            if (mcpCommands.length === 0) {
+                addErrorToTerminal(sourceTerminal, 'Invalid MCP format. Use: @target message');
+                return;
+            }
+            
+            // Add command to terminal
+            addToTerminal(sourceTerminal, `$ ${command}`, 'command');
+            
+            // Send each MCP command
+            mcpCommands.forEach((mcpCmd, index) => {
+                addToTerminal(sourceTerminal, `🔗 Sending to ${mcpCmd.target}...`, 'output');
+                
+                // Send MCP communication request
+                fetch('/api/mcp/communicate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        source: sourceTerminal,
+                        target: mcpCmd.target,
+                        message: mcpCmd.message
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        addErrorToTerminal(sourceTerminal, `MCP Error (${mcpCmd.target}): ${data.error}`);
+                    } else {
+                        addToTerminal(sourceTerminal, `✅ Response from ${mcpCmd.target}:`, 'output');
+                        if (data.response && data.response.output) {
+                            addToTerminal(sourceTerminal, data.response.output, 'output');
+                        }
+                    }
+                })
+                .catch(error => {
+                    addErrorToTerminal(sourceTerminal, `MCP Communication failed (${mcpCmd.target}): ${error.message}`);
+                });
+            });
+        }
+
+        function addToTerminal(terminalType, text, type = 'output') {
+            const terminal = terminals[terminalType];
+            const div = document.createElement('div');
+            
+            // Set appropriate styling based on message type
+            if (type === 'command') {
+                div.className = 'text-yellow-400';
+            } else if (type === 'mcp-incoming') {
+                div.className = 'text-blue-400 font-semibold';
+            } else if (type === 'mcp-response') {
+                div.className = 'text-cyan-400';
+            } else if (type === 'workspace-update') {
+                div.className = 'text-purple-400';
+            } else if (type === 'task-assigned') {
+                div.className = 'text-orange-400 font-semibold';
+            } else if (type === 'task-description') {
+                div.className = 'text-orange-300';
+            } else if (type === 'task-progress') {
+                div.className = 'text-indigo-400';
+            } else {
+                div.className = 'text-green-400';
+            }
+            
+            div.textContent = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addErrorToTerminal(terminalType, text) {
+            const terminal = terminals[terminalType];
+            const div = document.createElement('div');
+            div.className = 'text-red-400';
+            div.textContent = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Socket event handlers
+        socket.on('command_output', function(data) {
+            const terminalType = data.terminal || 'system';
+            
+            if (data.error) {
+                addErrorToTerminal(terminalType, data.error);
+            }
+            
+            if (data.output) {
+                addToTerminal(terminalType, data.output);
+            }
+        });
+
+        // Handle incoming MCP messages
+        socket.on('mcp_message_received', function(data) {
+            const targetTerminal = data.target;
+            const sourceTerminal = data.source;
+            const message = data.message;
+            const response = data.response;
+            
+            console.log('MCP message received:', data);
+            
+            // Display incoming message in target terminal
+            addToTerminal(targetTerminal, `📨 Message from ${sourceTerminal}: ${message}`, 'mcp-incoming');
+            
+            // Display response if available
+            if (response && response.output) {
+                addToTerminal(targetTerminal, `💬 Response: ${response.output}`, 'mcp-response');
+            }
+        });
+
+        // Handle workspace updates
+        socket.on('workspace_updated', function(data) {
+            console.log('Workspace updated:', data);
+            if (data.action === 'file_uploaded') {
+                addToWorkspace(`📁 New file uploaded: ${data.file_name}`);
+                // Notify all terminals about new file
+                Object.keys(terminals).forEach(terminalId => {
+                    if (terminalId !== 'system') {
+                        addToTerminal(terminalId, `📁 New file in workspace: ${data.file_name}`, 'workspace-update');
+                    }
+                });
+            }
+        });
+
+        // Handle task updates
+        socket.on('task_created', function(data) {
+            console.log('Task created:', data);
+            addToWorkspace(`📋 New task created: ${data.name}`);
+            
+            // Notify assigned terminals
+            if (data.assigned_terminals) {
+                data.assigned_terminals.forEach(terminalId => {
+                    if (terminals[terminalId]) {
+                        addToTerminal(terminalId, `📋 New task assigned: ${data.name}`, 'task-assigned');
+                        addToTerminal(terminalId, `📝 Description: ${data.description}`, 'task-description');
+                    }
+                });
+            }
+        });
+
+        socket.on('task_progress_updated', function(data) {
+            console.log('Task progress updated:', data);
+            addToWorkspace(`📊 Progress update from ${data.progress.terminal}: ${data.progress.action}`);
+            
+            // Notify all terminals about progress
+            Object.keys(terminals).forEach(terminalId => {
+                if (terminalId !== 'system') {
+                    addToTerminal(terminalId, `📊 Task progress: ${data.progress.action} by ${data.progress.terminal}`, 'task-progress');
+                }
+            });
+        });
+
+        // Handle Enter key in inputs
+        Object.keys(inputs).forEach(terminalType => {
+            inputs[terminalType].addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    executeCommand(terminalType);
+                }
+            });
+        });
+
+        // Spawnable terminal functionality
+        document.getElementById('spawn-terminal-btn').addEventListener('click', spawnNewTerminal);
+
+        function spawnNewTerminal() {
+            const button = document.getElementById('spawn-terminal-btn');
+            button.disabled = true;
+            button.innerHTML = '<span class="mr-2">⏳</span>Spawning...';
+            
+            fetch('/api/terminals/spawn', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Terminal spawned:', data);
+                    createTerminalUI(data.terminal_id, data.port);
+                    button.innerHTML = '<span class="mr-2">✅</span>Terminal Spawned!';
+                    setTimeout(() => {
+                        button.disabled = false;
+                        button.innerHTML = '<span class="mr-2">➕</span>Spawn New Gemini Terminal';
+                    }, 2000);
+                } else {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Failed to spawn terminal:', error);
+                button.innerHTML = '<span class="mr-2">❌</span>Failed to Spawn';
+                setTimeout(() => {
+                    button.disabled = false;
+                    button.innerHTML = '<span class="mr-2">➕</span>Spawn New Gemini Terminal';
+                }, 3000);
+            });
+        }
+
+        function createTerminalUI(terminalId, port) {
+            // Create terminal container
+            const terminalContainer = document.createElement('div');
+            terminalContainer.id = `${terminalId}-container`;
+            terminalContainer.className = 'terminal-container bg-gray-800 rounded-lg';
+            terminalContainer.draggable = true;
+            
+            // Generate random color for the terminal
+            const colors = ['bg-blue-600', 'bg-green-600', 'bg-purple-600', 'bg-pink-600', 'bg-indigo-600'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            terminalContainer.innerHTML = `
+                <div class="terminal-header">
+                    <span>🤖 ${terminalId.toUpperCase()} (Port ${port})</span>
+                </div>
+                <div class="terminal-content p-4">
+                    <div id="${terminalId}-terminal" class="terminal mb-4"></div>
+                    <div class="flex">
+                        <input type="text" id="${terminalId}-input" placeholder="Enter gemini command..." 
+                               class="flex-1 bg-gray-700 text-white px-3 py-2 rounded-l border border-gray-600">
+                        <button onclick="executeCommand('${terminalId}')" 
+                                class="${randomColor} hover:${randomColor.replace('600', '700')} px-4 py-2 rounded-r">
+                            Execute
+                        </button>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            `;
+            
+            // Add to terminal grid
+            document.getElementById('terminal-grid').appendChild(terminalContainer);
+            
+            // Initialize terminal data structures
+            terminals[terminalId] = document.getElementById(`${terminalId}-terminal`);
+            inputs[terminalId] = document.getElementById(`${terminalId}-input`);
+            commandHistory[terminalId] = [];
+            historyIndex[terminalId] = -1;
+            
+            // Add initial message
+            terminals[terminalId].innerHTML = `
+                <div class="text-gray-400">${terminalId.toUpperCase()} ready...</div>
+                <div class="text-gray-500 mt-2">💡 <strong>Gemini CLI commands:</strong></div>
+                <div class="text-gray-500">Try: gemini --help</div>
+                <div class="text-gray-500">Try: gemini chat "Hello"</div>
+                <div class="text-gray-500">Try: gemini --prompt "Explain quantum computing"</div>
+                <div class="text-gray-500 mt-2">🔗 <strong>MCP Communication:</strong> Use @gemini-1, @gemini-2, or @${terminalId} to send messages</div>
+                <div class="text-gray-500 mt-2">⌨️ <strong>Keyboard Shortcuts:</strong> ↑↓ for history, Ctrl+C/V for copy/paste</div>
+                <div class="text-gray-500 mt-2">❌ <strong>Don't use:</strong> npm, npx, git, or system commands here</div>
+            `;
+            
+            // Add event listeners
+            inputs[terminalId].addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    executeCommand(terminalId);
+                }
+            });
+            
+            // Add drag and drop functionality
+            setupDragAndDrop(terminalContainer);
+            
+            console.log(`Terminal ${terminalId} created successfully`);
+        }
+
+        // Collaborative Workspace Functions
+        function showFileUpload() {
+            document.getElementById('file-upload-modal').classList.remove('hidden');
+        }
+
+        function hideFileUpload() {
+            document.getElementById('file-upload-modal').classList.add('hidden');
+            document.getElementById('file-name-input').value = '';
+            document.getElementById('file-content-input').value = '';
+        }
+
+        function showTaskCreation() {
+            document.getElementById('task-creation-modal').classList.remove('hidden');
+        }
+
+        function hideTaskCreation() {
+            document.getElementById('task-creation-modal').classList.add('hidden');
+            document.getElementById('task-name-input').value = '';
+            document.getElementById('task-description-input').value = '';
+            // Clear checkboxes
+            document.querySelectorAll('#task-creation-modal input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+
+        function uploadFile() {
+            const fileName = document.getElementById('file-name-input').value.trim();
+            const fileContent = document.getElementById('file-content-input').value.trim();
+            
+            if (!fileName || !fileContent) {
+                addToWorkspace('❌ Please provide both file name and content');
+                return;
+            }
+            
+            fetch('/api/workspace/upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: fileName,
+                    content: fileContent,
+                    type: 'text'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToWorkspace(`✅ File uploaded: ${fileName}`);
+                    hideFileUpload();
+                } else {
+                    addToWorkspace(`❌ Upload failed: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                addToWorkspace(`❌ Upload error: ${error.message}`);
+            });
+        }
+
+        function createTask() {
+            const taskName = document.getElementById('task-name-input').value.trim();
+            const taskDescription = document.getElementById('task-description-input').value.trim();
+            const assignedTerminals = Array.from(document.querySelectorAll('#task-creation-modal input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            if (!taskName) {
+                addToWorkspace('❌ Please provide a task name');
+                return;
+            }
+            
+            fetch('/api/workspace/task', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: taskName,
+                    description: taskDescription,
+                    terminals: assignedTerminals
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addToWorkspace(`✅ Task created: ${taskName}`);
+                    addToWorkspace(`📋 Assigned to: ${assignedTerminals.join(', ') || 'None'}`);
+                    hideTaskCreation();
+                } else {
+                    addToWorkspace(`❌ Task creation failed: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                addToWorkspace(`❌ Task creation error: ${error.message}`);
+            });
+        }
+
+        function listWorkspaceFiles() {
+            fetch('/api/workspace/files')
+            .then(response => response.json())
+            .then(data => {
+                if (data.files && data.files.length > 0) {
+                    addToWorkspace('📂 Workspace Files:');
+                    data.files.forEach(file => {
+                        addToWorkspace(`  📄 ${file.name} (${file.type})`);
+                    });
+                } else {
+                    addToWorkspace('📂 No files in workspace');
+                }
+            })
+            .catch(error => {
+                addToWorkspace(`❌ Error listing files: ${error.message}`);
+            });
+        }
+
+        function listTasks() {
+            fetch('/api/workspace/tasks')
+            .then(response => response.json())
+            .then(data => {
+                if (data.tasks && data.tasks.length > 0) {
+                    addToWorkspace('📊 Active Tasks:');
+                    data.tasks.forEach(task => {
+                        addToWorkspace(`  📋 ${task.name} (${task.status})`);
+                        if (task.assigned_terminals && task.assigned_terminals.length > 0) {
+                            addToWorkspace(`    👥 Assigned: ${task.assigned_terminals.join(', ')}`);
+                        }
+                    });
+                } else {
+                    addToWorkspace('📊 No active tasks');
+                }
+            })
+            .catch(error => {
+                addToWorkspace(`❌ Error listing tasks: ${error.message}`);
+            });
+        }
+
+        function addToWorkspace(text) {
+            const workspace = document.getElementById('workspace-terminal');
+            const div = document.createElement('div');
+            div.className = 'text-green-400';
+            div.textContent = text;
+            workspace.appendChild(div);
+            workspace.scrollTop = workspace.scrollHeight;
+        }
+
+        // Initialize workspace
+        document.addEventListener('DOMContentLoaded', function() {
+            addToWorkspace('🤝 Collaborative Workspace ready...');
+            addToWorkspace('💡 Upload code files and create tasks for AI collaboration');
+            addToWorkspace('📁 Use "List Files" to see uploaded code');
+            addToWorkspace('📋 Use "View Tasks" to see active collaborations');
+        });
+
+        // Update container status
+        function updateContainerStatus() {
+            fetch('/api/containers/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update Gemini CLI 1 status
+                    const gemini1Status = document.getElementById('gemini-1-status');
+                    const gemini1Text = document.getElementById('gemini-1-status-text');
+                    gemini1Status.className = `status-indicator status-${data['gemini-1']}`;
+                    gemini1Text.textContent = data['gemini-1'].toUpperCase();
+                    
+                    // Update Gemini CLI 2 status
+                    const gemini2Status = document.getElementById('gemini-2-status');
+                    const gemini2Text = document.getElementById('gemini-2-status-text');
+                    gemini2Status.className = `status-indicator status-${data['gemini-2']}`;
+                    gemini2Text.textContent = data['gemini-2'].toUpperCase();
+                    
+                    // Update Gemini CLI 3 status
+                    const gemini3Status = document.getElementById('gemini-3-status');
+                    const gemini3Text = document.getElementById('gemini-3-status-text');
+                    gemini3Status.className = `status-indicator status-${data['gemini-3']}`;
+                    gemini3Text.textContent = data['gemini-3'].toUpperCase();
+                    
+                    // Update Redis status
+                    const redisStatus = document.getElementById('redis-status');
+                    const redisText = document.getElementById('redis-status-text');
+                    redisStatus.className = `status-indicator status-${data['redis']}`;
+                    redisText.textContent = data['redis'].toUpperCase();
+                })
+                .catch(error => {
+                    console.error('Error fetching container status:', error);
+                });
+        }
+
+        // Update status every 10 seconds
+        updateContainerStatus();
+        setInterval(updateContainerStatus, 10000);
+
+        // Add keyboard event handlers for command history and copy-paste
+        Object.keys(inputs).forEach(terminalType => {
+            const input = inputs[terminalType];
+            
+            // Handle arrow keys for command history
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateHistory(terminalType, 'up');
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateHistory(terminalType, 'down');
+                } else if (e.key === 'Enter') {
+                    // Reset history index when executing a command
+                    historyIndex[terminalType] = commandHistory[terminalType].length;
+                }
+            });
+
+            // Handle copy-paste with keyboard shortcuts
+            input.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'c') {
+                        // Copy is handled by browser default
+                        return;
+                    } else if (e.key === 'v') {
+                        // Paste is handled by browser default
+                        return;
+                    }
+                }
+            });
+
+            // Enable copy-paste with mouse
+            input.addEventListener('copy', function(e) {
+                // Browser handles copy automatically
+            });
+
+            input.addEventListener('paste', function(e) {
+                // Browser handles paste automatically
+            });
+        });
+
+        // Enable copy-paste for terminal output areas
+        Object.keys(terminals).forEach(terminalType => {
+            const terminal = terminals[terminalType];
+            
+            // Make terminal content selectable and copyable
+            terminal.style.userSelect = 'text';
+            terminal.style.webkitUserSelect = 'text';
+            terminal.style.mozUserSelect = 'text';
+            terminal.style.msUserSelect = 'text';
+            
+            // Add right-click context menu for copy
+            terminal.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                const selection = window.getSelection();
+                if (selection.toString()) {
+                    // Copy selected text
+                    navigator.clipboard.writeText(selection.toString()).then(() => {
+                        // Show a brief "Copied!" message
+                        const copiedMsg = document.createElement('div');
+                        copiedMsg.textContent = 'Copied!';
+                        copiedMsg.style.position = 'absolute';
+                        copiedMsg.style.top = e.clientY + 'px';
+                        copiedMsg.style.left = e.clientX + 'px';
+                        copiedMsg.style.background = '#10B981';
+                        copiedMsg.style.color = 'white';
+                        copiedMsg.style.padding = '4px 8px';
+                        copiedMsg.style.borderRadius = '4px';
+                        copiedMsg.style.fontSize = '12px';
+                        copiedMsg.style.zIndex = '1000';
+                        document.body.appendChild(copiedMsg);
+                        
+                        setTimeout(() => {
+                            document.body.removeChild(copiedMsg);
+                        }, 1000);
+                    });
+                }
+            });
+        });
+
+        // Dragging functionality
+        let draggedElement = null;
+        let offsetX, offsetY;
+
+        // Make terminals draggable - ONLY from header
+        document.querySelectorAll('.terminal-container').forEach(container => {
+            const header = container.querySelector('.terminal-header');
+            
+            header.addEventListener('mousedown', function(e) {
+                // Only allow dragging if clicking directly on the header text/background
+                // Not on any child elements that might interfere with text selection
+                if (e.target === header || e.target.parentElement === header) {
+                    // Check if there's any text selection
+                    if (window.getSelection().toString()) {
+                        return; // Don't drag if text is selected
+                    }
+                    
+                    draggedElement = container;
+                    offsetX = e.clientX - container.offsetLeft;
+                    offsetY = e.clientY - container.offsetTop;
+                    
+                    container.classList.add('dragging');
+                    container.style.position = 'fixed';
+                    container.style.zIndex = '1000';
+                    container.style.pointerEvents = 'none';
+                    
+                    e.preventDefault();
+                }
+            });
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (draggedElement) {
+                draggedElement.style.left = (e.clientX - offsetX) + 'px';
+                draggedElement.style.top = (e.clientY - offsetY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+                draggedElement.style.pointerEvents = 'auto';
+                draggedElement = null;
+            }
+        });
+
+        // Resizing functionality
+        document.querySelectorAll('.resize-handle').forEach(handle => {
+            handle.addEventListener('mousedown', function(e) {
+                const container = handle.parentElement;
+                const terminal = container.querySelector('.terminal');
+                
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startWidth = terminal.offsetWidth;
+                const startHeight = terminal.offsetHeight;
+                
+                function resize(e) {
+                    const newWidth = Math.max(300, Math.min(window.innerWidth - 100, startWidth + (e.clientX - startX)));
+                    const newHeight = Math.max(200, Math.min(800, startHeight + (e.clientY - startY)));
+                    
+                    terminal.style.width = newWidth + 'px';
+                    terminal.style.height = newHeight + 'px';
+                    
+                    // Update container size to match terminal
+                    container.style.width = (newWidth + 40) + 'px';
+                    container.style.height = (newHeight + 120) + 'px';
+                }
+                
+                function stopResize() {
+                    document.removeEventListener('mousemove', resize);
+                    document.removeEventListener('mouseup', stopResize);
+                }
+                
+                document.addEventListener('mousemove', resize);
+                document.addEventListener('mouseup', stopResize);
+                
+                e.preventDefault();
+            });
+        });
+
+        // Double-click to reset position
+        document.querySelectorAll('.terminal-container').forEach(container => {
+            container.addEventListener('dblclick', function(e) {
+                if (e.target.classList.contains('terminal-header')) {
+                    container.style.position = 'relative';
+                    container.style.left = '';
+                    container.style.top = '';
+                    container.style.zIndex = '';
+                }
+            });
+        });
+        
+        // Detect text selection to prevent dragging interference
+        document.addEventListener('selectionchange', function() {
+            const selection = window.getSelection();
+            const hasSelection = selection.toString().length > 0;
+            
+            document.querySelectorAll('.terminal-container').forEach(container => {
+                if (hasSelection) {
+                    container.classList.add('selecting');
+                } else {
+                    container.classList.remove('selecting');
+                }
+            });
+        });
+        
+        // Prevent dragging when mouse is over selectable text
+        document.addEventListener('mouseover', function(e) {
+            if (e.target.classList.contains('terminal') || 
+                e.target.closest('.terminal') || 
+                window.getSelection().toString()) {
+                const container = e.target.closest('.terminal-container');
+                if (container) {
+                    container.classList.add('selecting');
+                }
+            }
+        });
+        
+        // Additional protection: prevent drag on any text selection
+        document.addEventListener('mousedown', function(e) {
+            if (window.getSelection().toString()) {
+                // If there's text selected, prevent any drag operations
+                e.stopPropagation();
+            }
+        });
+        
+        // Ensure copy/paste works in terminals
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
+                // Allow copy/paste/cut operations to work normally
+                e.stopPropagation();
+            }
+        });
+    </script>
+</body>
+</html> 
