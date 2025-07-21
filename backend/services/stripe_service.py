@@ -96,17 +96,16 @@ class StripeService:
                     print(f"🔍 Checking existing customer ID: {user_data['stripe_customer_id']}")
                     customer = stripe.Customer.retrieve(user_data['stripe_customer_id'])
                     # Check if customer exists and is not deleted
-                    if customer and hasattr(customer, 'deleted') and not customer.deleted:
-                        print(f"✅ Found existing customer: {customer.id}")
-                        return customer
-                    elif customer and not hasattr(customer, 'deleted'):
-                        # Customer exists and doesn't have deleted attribute (not deleted)
-                        print(f"✅ Found existing customer: {customer.id}")
-                        return customer
-                    else:
-                        print(f"⚠️  Customer is deleted, will create new customer")
-                        # Customer is deleted, continue to create new customer
-                        pass
+                    if customer:
+                        # Check if customer is deleted by looking at the object's dictionary
+                        customer_dict = customer.to_dict()
+                        if 'deleted' in customer_dict and customer_dict['deleted']:
+                            print(f"⚠️  Customer is deleted, will create new customer")
+                            # Customer is deleted, continue to create new customer
+                            pass
+                        else:
+                            print(f"✅ Found existing customer: {customer.id}")
+                            return customer
                 except stripe.error.InvalidRequestError:
                     print(f"⚠️  Invalid customer ID, will create new customer")
                     # Customer ID is invalid, continue to create new customer
