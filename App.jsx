@@ -3,7 +3,7 @@ import { Button } from './components/ui/button.jsx'
 import { Input } from './components/ui/input.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.jsx'
 import { Badge } from './components/ui/badge.jsx'
-import { Terminal, Play, Square, Cpu, Settings, User, Crown } from 'lucide-react'
+import { Terminal, Play, Square, Cpu, Settings, User, Crown, Paperclip } from 'lucide-react'
 import io from 'socket.io-client'
 import { parseInput } from './utils/smartParser.js'
 import SettingsPanel from './components/SettingsPanel.jsx'
@@ -33,6 +33,11 @@ function App() {
   
   const [sharedClipboard, setSharedClipboard] = useState('')
   const [terminalMessages, setTerminalMessages] = useState([])
+  const [attachmentMenus, setAttachmentMenus] = useState({
+    terminal1: false,
+    terminal2: false,
+    terminal3: false
+  })
   
   const terminalRefs = {
     terminal1: useRef(null),
@@ -187,6 +192,23 @@ function App() {
       }
     })
   }, [terminals])
+
+  useEffect(() => {
+    // Handle clicking outside attachment menus
+    const handleClickOutside = (event) => {
+      const isAttachmentMenu = event.target.closest('.attachment-menu')
+      const isPaperclipButton = event.target.closest('.paperclip-button')
+      
+      if (!isAttachmentMenu && !isPaperclipButton) {
+        closeAllAttachmentMenus()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const executeCommand = (terminalId) => {
 
@@ -623,6 +645,21 @@ function App() {
     }
   }
 
+  const toggleAttachmentMenu = (terminalId) => {
+    setAttachmentMenus(prev => ({
+      ...prev,
+      [terminalId]: !prev[terminalId]
+    }))
+  }
+
+  const closeAllAttachmentMenus = () => {
+    setAttachmentMenus({
+      terminal1: false,
+      terminal2: false,
+      terminal3: false
+    })
+  }
+
   // Show login page if not authenticated
   if (loading) {
     return (
@@ -691,7 +728,7 @@ function App() {
                 Plans
               </Button>
               
-              {/* User Avatar and Info */}
+              {/* User Avatar */}
               {currentUser && (
                 <div className="flex items-center gap-2 mr-2">
                   {currentUser.picture ? (
@@ -705,10 +742,6 @@ function App() {
                       <User className="w-4 h-4 text-gray-400" />
                     </div>
                   )}
-                  <div className="hidden md:block">
-                    <div className="text-sm font-medium text-white">{currentUser.name}</div>
-                    <div className="text-xs text-gray-400">{currentUser.email}</div>
-                  </div>
                 </div>
               )}
               
@@ -786,40 +819,7 @@ function App() {
                     {getTerminalIcon(terminalId)}
                     <span className="ml-2">{getTerminalTitle(terminalId)}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      onClick={() => handleCopy(terminalId)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      📋
-                    </Button>
-                    <Button
-                      onClick={() => handlePaste(terminalId)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      📄
-                    </Button>
-                    <Button
-                      onClick={() => handleScreenshot(terminalId)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      📸
-                    </Button>
-                    <Button
-                      onClick={() => handleVoiceInput(terminalId)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      🎤
-                    </Button>
-                  </div>
+
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -886,26 +886,67 @@ function App() {
                 </div>
 
                 {/* Command Input */}
-                <div className="flex gap-2">
-                  <Input
-                    value={terminals[terminalId].input}
-                    onChange={(e) => handleInputChange(terminalId, e.target.value)}
-                    onKeyPress={(e) => handleKeyPress(e, terminalId)}
-                    onKeyDown={(e) => {
-                      if (e.ctrlKey || e.metaKey) {
-                        if (e.key === 'c') {
-                          e.preventDefault()
-                          handleCopy(terminalId)
-                        } else if (e.key === 'v') {
-                          e.preventDefault()
-                          handlePaste(terminalId)
+                <div className="flex gap-2 relative">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={terminals[terminalId].input}
+                      onChange={(e) => handleInputChange(terminalId, e.target.value)}
+                      onKeyPress={(e) => handleKeyPress(e, terminalId)}
+                      onKeyDown={(e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                          if (e.key === 'c') {
+                            e.preventDefault()
+                            handleCopy(terminalId)
+                          } else if (e.key === 'v') {
+                            e.preventDefault()
+                            handlePaste(terminalId)
+                          }
                         }
-                      }
-                    }}
-                    placeholder={connected ? "Enter command..." : "Connecting to server..."}
-                    className={`bg-gray-800 border-gray-600 text-white ${!connected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    disabled={!connected}
-                  />
+                      }}
+                      placeholder={connected ? "Enter command..." : "Connecting to server..."}
+                      className={`bg-gray-800 border-gray-600 text-white pr-12 ${!connected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!connected}
+                    />
+                    <Button
+                      onClick={() => toggleAttachmentMenu(terminalId)}
+                      size="sm"
+                      variant="ghost"
+                      className="paperclip-button absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                      disabled={!connected}
+                    >
+                      <Paperclip className="w-4 h-4" />
+                    </Button>
+                    
+                    {/* Attachment Menu */}
+                    {attachmentMenus[terminalId] && (
+                      <div className="attachment-menu absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg p-2 z-10">
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            onClick={() => {
+                              handleScreenshot(terminalId)
+                              toggleAttachmentMenu(terminalId)
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="text-gray-400 hover:text-white justify-start"
+                          >
+                            📸 Screenshot
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              handleVoiceInput(terminalId)
+                              toggleAttachmentMenu(terminalId)
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="text-gray-400 hover:text-white justify-start"
+                          >
+                            🎤 Voice Input
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <Button
                     onClick={() => executeCommand(terminalId)}
                     disabled={!connected || !terminals[terminalId].input.trim()}
@@ -934,9 +975,8 @@ function App() {
             <p>🖱️ <strong>Drag:</strong> Click and drag terminal headers to move</p>
             <p>📏 <strong>Resize:</strong> Drag bottom-right corner to resize</p>
             <p>⬆️ <strong>History:</strong> Use ↑/↓ arrows to navigate command history</p>
-            <p>📋 <strong>Copy/Paste:</strong> Use Ctrl+C/Ctrl+V or click buttons</p>
-            <p>📸 <strong>Screenshot:</strong> Click 📸 to save terminal as image</p>
-            <p>🎤 <strong>Voice:</strong> Click 🎤 to record voice commands</p>
+            <p>📋 <strong>Copy/Paste:</strong> Use Ctrl+C/Ctrl+V for copy/paste</p>
+            <p>📎 <strong>Attachments:</strong> Click 📎 in input field for screenshot and voice input</p>
           </div>
           
           <div className="mt-4 text-xs">

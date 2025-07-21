@@ -95,7 +95,7 @@ class StripeService:
                 try:
                     print(f"🔍 Checking existing customer ID: {user_data['stripe_customer_id']}")
                     customer = stripe.Customer.retrieve(user_data['stripe_customer_id'])
-                    if customer and not customer.deleted:
+                    if customer:
                         print(f"✅ Found existing customer: {customer.id}")
                         return customer
                 except stripe.error.InvalidRequestError:

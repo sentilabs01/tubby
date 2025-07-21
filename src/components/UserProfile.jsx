@@ -65,8 +65,7 @@ const UserProfile = () => {
             </div>
           )}
                       <div className="flex-1">
-              <h3 className="font-semibold text-white">{currentUser.name}</h3>
-              <p className="text-sm text-gray-400">{currentUser.email}</p>
+              <h3 className="font-semibold text-white">User Profile</h3>
               <div className="flex items-center gap-2 mt-1">
                 {subscriptionStatus && currentUser.provider !== 'guest' && (
                   <div>

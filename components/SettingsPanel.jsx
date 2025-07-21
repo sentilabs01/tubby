@@ -10,7 +10,7 @@ import { useAuth } from '../src/components/AuthManager.jsx'
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
 
 const SettingsPanel = ({ isOpen, onClose }) => {
-  const { currentUser, isAuthenticated, logout, checkAuthStatus } = useAuth()
+  const { currentUser, isAuthenticated, logout } = useAuth()
   const [apiKeys, setApiKeys] = useState({
     gemini: '',
     anthropic: '',
@@ -146,14 +146,7 @@ const SettingsPanel = ({ isOpen, onClose }) => {
     }
   }
 
-  const handleRefreshAuth = async () => {
-    try {
-      await checkAuthStatus()
-      setMessage('Authentication status refreshed')
-    } catch (error) {
-      setMessage('Error refreshing authentication status')
-    }
-  }
+
 
   if (!isOpen) return null
 
@@ -209,8 +202,7 @@ const SettingsPanel = ({ isOpen, onClose }) => {
                 )}
                 <div className="flex-1 space-y-2">
                   <div>
-                    <h3 className="font-semibold text-white text-lg">{currentUser.name}</h3>
-                    <p className="text-sm text-gray-400">{currentUser.email}</p>
+                    <h3 className="font-semibold text-white text-lg">User Profile</h3>
                   </div>
                   <div className="flex items-center gap-2">
                     {currentUser.provider && (
@@ -311,32 +303,7 @@ const SettingsPanel = ({ isOpen, onClose }) => {
           </CardContent>
         </Card>
 
-        {/* Debug Section */}
-        <Card className="bg-black border-gray-800 mb-6">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Settings className="w-5 h-5 mr-2" />
-              Debug Info
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-xs text-gray-400 space-y-1">
-              <div><strong>Authentication Status:</strong> {isAuthenticated ? '✅ Authenticated' : '❌ Not Authenticated'}</div>
-              <div><strong>User ID:</strong> {currentUser?.id || 'None'}</div>
-              <div><strong>Provider:</strong> {currentUser?.provider || 'None'}</div>
-              <div><strong>Email Verified:</strong> {currentUser?.verified_email ? '✅ Yes' : '❌ No'}</div>
-              <div><strong>Backend URL:</strong> {BACKEND_URL}</div>
-            </div>
-            <Button
-              onClick={handleRefreshAuth}
-              variant="outline"
-              size="sm"
-              className="text-gray-400 hover:text-white"
-            >
-              Refresh Auth Status
-            </Button>
-          </CardContent>
-        </Card>
+
 
         {/* Message Display */}
         {message && (
