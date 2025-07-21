@@ -66,6 +66,65 @@ class UserService:
             print(f"Error getting user by Google ID: {e}")
             return None
     
+    def get_user_by_supabase_id(self, supabase_id):
+        """Get user by Supabase ID - CRITICAL FIX FOR AUTH BUG"""
+        if not self.supabase:
+            print(f"Supabase client not initialized for user lookup: {supabase_id}")
+            return None
+            
+        try:
+            print(f"Looking up user by Supabase ID: {supabase_id}")
+            result = self.supabase.table('users').select('*').eq('supabase_id', supabase_id).execute()
+            if result.data:
+                print(f"✅ User found: {result.data[0].get('email', 'Unknown')}")
+                return result.data[0]
+            else:
+                print(f"❌ User not found by Supabase ID: {supabase_id}")
+                return None
+        except Exception as e:
+            print(f"Error getting user by Supabase ID {supabase_id}: {e}")
+            return None
+    
+    def create_user_from_oauth(self, user_data):
+        """Create user from OAuth data if not exists - CRITICAL FIX FOR AUTH BUG"""
+        if not self.supabase:
+            print("Supabase client not initialized for user creation")
+            return None
+            
+        try:
+            print(f"Creating user from OAuth data: {user_data.get('email', 'Unknown')}")
+            user = {
+                'supabase_id': user_data.get('id'),
+                'email': user_data.get('email'),
+                'name': user_data.get('name'),
+                'provider': user_data.get('provider'),
+                'picture': user_data.get('picture'),
+                'verified_email': user_data.get('verified_email', False),
+                'subscription_plan': 'free',
+                'subscription_status': 'free'
+            }
+            
+            # Validate required fields
+            if not user.get('supabase_id'):
+                print("Error: Missing supabase_id for user creation")
+                return None
+            if not user.get('email'):
+                print("Error: Missing email for user creation")
+                return None
+            
+            result = self.supabase.table('users').insert(user).execute()
+            if result.data:
+                print(f"✅ User created successfully: {result.data[0].get('email', 'Unknown')}")
+                return result.data[0]
+            else:
+                print("❌ No data returned from user creation")
+                return None
+        except Exception as e:
+            print(f"Error creating user from OAuth: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     def update_user_subscription(self, user_id, subscription_data):
         """Update user subscription information"""
         if not self.supabase:

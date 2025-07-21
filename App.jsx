@@ -9,7 +9,7 @@ import { parseInput } from './utils/smartParser.js'
 import SettingsPanel from './components/SettingsPanel.jsx'
 import html2canvas from 'html2canvas'
 import { AuthProvider, useAuth } from './src/components/AuthManager.jsx'
-import Login from './src/components/Login.jsx'
+import AuthContainer from './src/components/AuthContainer.jsx'
 import UserProfile from './src/components/UserProfile.jsx'
 import SubscriptionPlans from './src/components/SubscriptionPlans.jsx'
 
@@ -42,7 +42,7 @@ function App() {
 
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io('http://localhost:5001', {
+    const newSocket = io('http://localhost:5004', {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
@@ -594,7 +594,7 @@ function App() {
         formData.append('audio', blob)
         
         try {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
           const response = await fetch(`${BACKEND_URL}/api/whisper/transcribe`, {
             method: 'POST',
             credentials: 'include',
@@ -640,7 +640,7 @@ function App() {
   }
 
   if (!isAuthenticated) {
-    return <Login />
+    return <AuthContainer />
   }
 
   // Show subscription page if requested
@@ -836,7 +836,7 @@ function App() {
                         Unable to connect to the backend server.
                       </div>
                       <div className="text-xs text-gray-500 mt-2">
-                        Please check if the backend server is running on port 5001
+                        Please check if the backend server is running on port 5004
                       </div>
                     </div>
                   ) : terminals[terminalId].history.length === 0 ? (

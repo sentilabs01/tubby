@@ -13,6 +13,31 @@ A revolutionary web-based platform that enables seamless communication between A
 
 ![Platform Preview](localhost_2025-07-20_03-44-56_5446.webp)
 
+## 📊 **Current Status**
+
+### ✅ **Working Features:**
+- **🔐 Authentication System**: Google OAuth fully functional
+- **👤 User Management**: User lookup and creation working
+- **🔗 MCP Inter-Terminal Communication**: Real-time messaging and command routing
+- **🤖 Multi-Agent Interface**: Claude Code, Gemini CLI, and System terminals
+- **⚡ Real-time Communication**: WebSocket-based command execution
+- **📊 Live Container Monitoring**: Real-time status indicators
+- **🎨 Modern Dark UI**: Beautiful, responsive interface
+- **🐳 Docker Integration**: Containerized AI agents
+
+### 🔧 **In Progress:**
+- **💳 Stripe Integration**: Account under review (2-3 days expected)
+- **📱 Subscription Management**: Waiting for Stripe account approval
+- **🔒 Payment Processing**: Blocked by Stripe account review
+
+### 🚀 **Recent Updates:**
+- **Authentication Bug Fixed**: User lookup by Supabase ID working
+- **Stripe Configuration Complete**: Products created, price IDs configured
+- **Backend Stable**: Running without errors on port 5004
+- **Frontend Updated**: Running on port 3001 with proper proxy configuration
+
+---
+
 ## ✨ Features
 
 - **🔐 Secure Authentication**: Google OAuth and GitHub login integration with Supabase
@@ -25,19 +50,19 @@ A revolutionary web-based platform that enables seamless communication between A
 - **🔒 Secure API Management**: Environment-based API key management with encryption
 - **📱 Responsive Design**: Works seamlessly on desktop and mobile devices
 - **🔧 Advanced Features**: Voice input, screenshots, copy/paste, and command history
-- **💳 Subscription Management**: Stripe integration for subscription plans
+- **💳 Subscription Management**: Stripe integration for subscription plans (pending account review)
 - **👤 User Profiles**: Personalized experience with user-specific settings and data
 
 ## 🏗️ Architecture
 
 The application consists of:
 
-- **Frontend** (Port 3003): React-based web interface with real-time updates and authentication
-- **Backend** (Port 5001): Flask backend with WebSocket support, MCP routing, and OAuth integration
+- **Frontend** (Port 3001): React-based web interface with real-time updates and authentication
+- **Backend** (Port 5004): Flask backend with WebSocket support, MCP routing, and OAuth integration
 - **MCP Router** (Port 8080): Model Context Protocol router for inter-agent communication
 - **Gemini CLI Container 1** (Port 8001): Primary Gemini CLI instance
 - **Gemini CLI Container 2** (Port 8002): Secondary Gemini CLI instance for collaboration
-- **System Terminal** (Port 5001): Local system command execution
+- **System Terminal** (Port 5004): Local system command execution
 - **Redis** (Port 6379): Session management, caching, and shared data storage
 - **Supabase**: Authentication, user management, and database services
 
@@ -75,7 +100,7 @@ The application consists of:
    # OAuth Configuration
    GOOGLE_CLIENT_ID=your-google-client-id
    GOOGLE_CLIENT_SECRET=your-google-client-secret
-   GOOGLE_REDIRECT_URI=http://localhost:5001/auth/google/callback
+   GOOGLE_REDIRECT_URI=http://localhost:5004/auth/google/callback
    
    # JWT Configuration
    JWT_SECRET_KEY=your-jwt-secret-key
@@ -83,17 +108,20 @@ The application consists of:
    JWT_EXPIRATION_HOURS=24
    
    # Frontend URL
-   FRONTEND_URL=http://localhost:3003
+   FRONTEND_URL=http://localhost:3001
    
    # API Keys (Optional)
    ANTHROPIC_API_KEY=your-anthropic-api-key
    GOOGLE_API_KEY=your-google-api-key
    OPENAI_API_KEY=your-openai-api-key
    
-   # Stripe Configuration (Optional)
+   # Stripe Configuration (Optional - Account under review)
    STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
    STRIPE_SECRET_KEY=your-stripe-secret-key
    STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+   STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
+   STRIPE_PRO_PRICE_ID=price_1RnI8LKOB6ANfJLNRNuYrViX
+   STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNWZTZ5M8A
    ```
 
 3. **Configure Supabase Authentication**
@@ -106,36 +134,41 @@ The application consists of:
 
 4. **Run the Application**
    ```bash
-   docker-compose up --build
+   # Start backend
+   cd backend
+   python app.py
+   
+   # In another terminal, start frontend
+   npm run dev
    ```
 
 5. **Access the Web Interface**
    
-   Open your browser and navigate to: **http://localhost:3003**
+   Open your browser and navigate to: **http://localhost:3001**
 
 ## 🔐 Authentication
 
 Tubby AI supports multiple authentication methods:
 
-### **Google OAuth**
+### **Google OAuth** ✅ **WORKING**
 - Secure sign-in with Google accounts
 - Automatic user profile creation
 - Email verification and profile data sync
 
-### **GitHub OAuth**
+### **GitHub OAuth** ✅ **WORKING**
 - Developer-friendly GitHub integration
 - Access to GitHub profile information
 - Seamless developer experience
 
-### **Guest Mode**
+### **Guest Mode** ✅ **WORKING**
 - Quick access without account creation
 - Session-based temporary access
 - Perfect for testing and demos
 
-### **User Management**
+### **User Management** ✅ **WORKING**
 - Personalized API key storage
 - User-specific settings and preferences
-- Subscription management with Stripe
+- Subscription management with Stripe (pending account review)
 - Secure session management with JWT tokens
 
 ## 🎯 Usage
@@ -270,6 +303,8 @@ tubby/
 │   ├── components/        # React components
 │   │   ├── AuthManager.jsx    # Authentication context and logic
 │   │   ├── Login.jsx          # Login interface
+│   │   ├── SignUp.jsx         # Sign up interface
+│   │   ├── AuthContainer.jsx  # Authentication container
 │   │   ├── UserProfile.jsx    # User profile management
 │   │   └── SubscriptionPlans.jsx # Subscription management
 │   ├── main.jsx          # React entry point
@@ -305,7 +340,8 @@ For development, you can run the frontend and backend separately:
 
 ```bash
 # Terminal 1: Start backend
-python backend/app.py
+cd backend
+python app.py
 
 # Terminal 2: Start frontend
 npm run dev
@@ -324,16 +360,16 @@ docker-compose up --build
 Test the authentication flow:
 ```bash
 # Test Google OAuth
-curl http://localhost:5001/auth/google
+curl http://localhost:5004/auth/google
 
 # Test GitHub OAuth
-curl http://localhost:5001/auth/github
+curl http://localhost:5004/auth/github
 
 # Test guest authentication
-curl http://localhost:5001/auth/guest
+curl http://localhost:5004/auth/guest
 
 # Test user endpoint (requires authentication)
-curl http://localhost:5001/auth/user
+curl http://localhost:5004/auth/user
 ```
 
 ### Quick MCP Communication Tests
@@ -367,7 +403,7 @@ For detailed testing scenarios, see `mcp_test_commands.md` which contains:
 To verify all services are running:
 ```bash
 # Check backend
-curl http://localhost:5001/health
+curl http://localhost:5004/health
 
 # Check Gemini containers
 curl http://localhost:8001/health
@@ -377,7 +413,7 @@ curl http://localhost:8002/health
 curl http://localhost:8080/health
 
 # Check authentication
-curl http://localhost:5001/auth/user
+curl http://localhost:5004/auth/user
 ```
 
 ## 🔧 Troubleshooting
@@ -387,7 +423,7 @@ curl http://localhost:5001/auth/user
 **Authentication Issues**
 ```bash
 # Check OAuth configuration
-curl http://localhost:5001/debug/supabase
+curl http://localhost:5004/debug/supabase
 
 # Verify environment variables
 echo $SUPABASE_URL
@@ -403,7 +439,7 @@ docker logs runmvpwithdockerandrequiredtools-gemini-cli-container-2-1
 ```
 
 **Port conflicts**
-If ports 3003, 5001, 8001, 8002, 8080, or 6379 are in use, modify the `docker-compose.yml` file to use different ports.
+If ports 3001, 5004, 8001, 8002, 8080, or 6379 are in use, modify the `docker-compose.yml` file to use different ports.
 
 **Communication Timeout Issues**
 If you see "Container communication error: Read timed out":
@@ -420,6 +456,12 @@ If you don't have API keys, the containers will still run but CLI functionality 
 - Verify GitHub OAuth app settings
 - Check Supabase project configuration
 - Review the `AUTH_SETUP_GUIDE.md` for detailed setup instructions
+
+**Stripe Integration Issues**
+- Stripe account is currently under review (2-3 days expected)
+- All payment processing is blocked until review completes
+- This is a Stripe policy, not a code issue
+- Once review completes, integration will work immediately
 
 ## 🛑 Stopping the Application
 
@@ -461,6 +503,7 @@ If you encounter any issues or have questions:
 - [x] **Google OAuth Integration** - ✅ Complete
 - [x] **GitHub OAuth Integration** - ✅ Complete
 - [x] **Supabase Database Integration** - ✅ Complete
+- [x] **Stripe Integration Setup** - ✅ Complete (pending account review)
 - [ ] **Persistent Conversation Storage**
 - [ ] **Advanced MCP Function Library**
 - [ ] **Plugin System for Custom Integrations**

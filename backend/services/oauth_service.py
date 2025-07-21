@@ -57,7 +57,7 @@ class OAuthService:
         """Generate Google OAuth authorization URL"""
         if not GOOGLE_AVAILABLE:
             # Return a placeholder URL that will show an error message
-            return f"{os.getenv('FRONTEND_URL', 'http://localhost:3007')}/auth/error?provider=google&message=Google OAuth not configured"
+            return f"{os.getenv('FRONTEND_URL', 'http://localhost:3001')}/auth/error?provider=google&message=Google OAuth not configured"
         
         try:
             flow = self.create_google_flow()
@@ -65,7 +65,7 @@ class OAuthService:
             return auth_url
         except Exception as e:
             print(f"Error creating Google auth URL: {e}")
-            return f"{os.getenv('FRONTEND_URL', 'http://localhost:3007')}/auth/error?provider=google&message=Google OAuth configuration error"
+            return f"{os.getenv('FRONTEND_URL', 'http://localhost:3001')}/auth/error?provider=google&message=Google OAuth configuration error"
     
     def verify_google_token(self, code):
         """Verify Google OAuth token and return user info"""
@@ -123,7 +123,7 @@ class OAuthService:
             
         try:
             # Use the correct frontend URL based on current setup
-            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3015')
+            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
             redirect_url = f"{frontend_url}/auth/callback"
             
             print(f"Generating auth URL for {provider} with redirect: {redirect_url}")

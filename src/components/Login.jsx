@@ -2,7 +2,7 @@ import { useAuth } from './AuthManager'
 import { Button } from '../../components/ui/button.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.jsx'
 
-const Login = () => {
+const Login = ({ onSwitchToSignUp }) => {
   const { login, loading } = useAuth()
 
   if (loading) {
@@ -100,6 +100,15 @@ const Login = () => {
           
           <div className="text-center text-sm text-gray-500">
             <p>By signing in, you agree to our Terms of Service and Privacy Policy</p>
+            <p className="mt-4">
+              Don't have an account?{' '}
+              <button
+                onClick={onSwitchToSignUp}
+                className="text-blue-400 hover:text-blue-300 font-medium"
+              >
+                Sign up here
+              </button>
+            </p>
           </div>
         </CardContent>
       </Card>

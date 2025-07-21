@@ -8,23 +8,23 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       },
       '/auth': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       },
       '/socket.io': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5004',
         changeOrigin: true,
         ws: true,
         secure: false
       },
       '/stripe': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       }

@@ -25,7 +25,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 
 # Configure CORS
-CORS(app, origins=['http://localhost:3003', 'http://localhost:3010', 'http://localhost:3015', 'http://localhost:4173'], 
+CORS(app, origins=['http://localhost:3001', 'http://localhost:3003', 'http://localhost:3010', 'http://localhost:3015', 'http://localhost:4173'], 
      supports_credentials=True, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -45,7 +45,7 @@ stripe_service = StripeService()
 
 # Authentication decorator
 def require_auth(f):
-    """Decorator to require authentication"""
+    """Decorator to require authentication - CRITICAL FIX FOR AUTH BUG"""
     def decorated_function(*args, **kwargs):
         # Check for guest user first
         if session.get('is_guest') and session.get('guest_user'):
@@ -61,7 +61,24 @@ def require_auth(f):
         if not user_data:
             return jsonify({'error': 'Invalid or expired token'}), 401
         
-        request.current_user = user_data
+        # CRITICAL FIX: Look up user in database by Supabase ID
+        supabase_id = user_data.get('id')
+        if not supabase_id:
+            return jsonify({'error': 'Invalid user data'}), 401
+        
+        # Try to find user in database
+        user = user_service.get_user_by_supabase_id(supabase_id)
+        
+        if not user:
+            # Create user if not found - CRITICAL FIX
+            print(f"User not found in database, creating new user: {user_data.get('email', 'Unknown')}")
+            user = user_service.create_user_from_oauth(user_data)
+            
+            if not user:
+                return jsonify({'error': 'Failed to create user account'}), 500
+        
+        # Set the database user record as current user
+        request.current_user = user
         return f(*args, **kwargs)
     
     decorated_function.__name__ = f.__name__
@@ -269,7 +286,7 @@ def auth_callback():
     # If no token in query params, this is likely a browser redirect with fragment
     # Return a page that will extract the token from the fragment and send it to us
     if not access_token:
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3015')
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
         return f'''
         <!DOCTYPE html>
         <html>
@@ -290,7 +307,7 @@ def auth_callback():
                 
                 if (access_token) {{
                     // Send token to backend via POST
-                    fetch('http://localhost:5001/auth/callback', {{
+                    fetch('http://localhost:5004/auth/callback', {{
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',
@@ -338,7 +355,7 @@ def auth_callback():
     session['user'] = user
     
     # Redirect to frontend with success
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3015')
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
     return redirect(f'{frontend_url}/?auth=success')
 
 @app.route('/auth/callback', methods=['POST'])
@@ -435,60 +452,140 @@ def get_current_user():
 @app.route('/stripe/create-checkout-session', methods=['POST'])
 @require_auth
 def create_checkout_session():
-    """Create Stripe checkout session"""
-    data = request.get_json()
-    plan_type = data.get('plan_type')
-    
-    if not plan_type or plan_type not in ['basic', 'pro', 'enterprise']:
-        return jsonify({'error': 'Invalid plan type'}), 400
-    
-    user_id = request.current_user.get('user_id')
-    success_url = request.url_root + 'subscription/success'
-    cancel_url = request.url_root + 'subscription/cancel'
-    
-    session = stripe_service.create_checkout_session(
-        user_id, plan_type, success_url, cancel_url
-    )
-    
-    if session:
-        return jsonify({'checkout_url': session.url})
-    else:
-        return jsonify({'error': 'Failed to create checkout session'}), 500
+    """Create Stripe checkout session with comprehensive validation"""
+    try:
+        data = request.get_json()
+        plan_type = data.get('plan_type')
+        
+        # Validate plan type
+        if not plan_type or plan_type not in ['basic', 'pro', 'enterprise']:
+            return jsonify({'error': 'Invalid plan type'}), 400
+        
+        # Get user information
+        user_id = request.current_user.get('user_id') or request.current_user.get('id')
+        if not user_id:
+            return jsonify({'error': 'User ID not found'}), 400
+        
+        # Check if user is guest
+        if request.current_user.get('provider') == 'guest':
+            return jsonify({'error': 'Guest users cannot subscribe. Please sign in with Google or GitHub.'}), 403
+        
+        # Generate URLs
+        base_url = request.url_root.rstrip('/')
+        success_url = f"{base_url}/subscription/success"
+        cancel_url = f"{base_url}/subscription/cancel"
+        
+        # Create checkout session
+        session = stripe_service.create_checkout_session(
+            user_id, plan_type, success_url, cancel_url
+        )
+        
+        if session:
+            return jsonify({
+                'checkout_url': session.url,
+                'session_id': session.id
+            })
+        else:
+            return jsonify({'error': 'Failed to create checkout session'}), 500
+            
+    except Exception as e:
+        print(f"Error in create_checkout_session: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/stripe/subscription-status')
 @require_auth
 def get_subscription_status():
-    """Get user's subscription status"""
-    user_id = request.current_user.get('user_id')
-    user = user_service.get_user_by_id(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    # Get Stripe customer
-    customer = stripe_service.get_or_create_customer(user)
-    if customer:
-        status = stripe_service.get_subscription_status(customer.id)
-        return jsonify(status)
-    else:
-        return jsonify({'status': 'inactive'})
+    """Get comprehensive subscription status for the current user"""
+    try:
+        user_id = request.current_user.get('user_id') or request.current_user.get('id')
+        user = user_service.get_user_by_id(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Check if user is guest
+        if request.current_user.get('provider') == 'guest':
+            return jsonify({
+                'status': 'guest',
+                'plan': 'free',
+                'message': 'Guest users have limited access. Sign in to subscribe.'
+            })
+        
+        # Get Stripe customer and subscription status
+        customer = stripe_service.get_or_create_customer(user)
+        if customer:
+            status = stripe_service.get_subscription_status(customer.id)
+            return jsonify(status)
+        else:
+            return jsonify({'status': 'inactive', 'plan': 'free'})
+            
+    except Exception as e:
+        print(f"Error in get_subscription_status: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/stripe/cancel-subscription', methods=['POST'])
 @require_auth
 def cancel_subscription():
-    """Cancel user's subscription"""
-    user_id = request.current_user.get('user_id')
-    user = user_service.get_user_by_id(user_id)
-    
-    if not user or not user.get('subscription_id'):
-        return jsonify({'error': 'No active subscription found'}), 404
-    
-    result = stripe_service.cancel_subscription(user['subscription_id'])
-    
-    if result:
-        return jsonify({'message': 'Subscription canceled successfully'})
-    else:
-        return jsonify({'error': 'Failed to cancel subscription'}), 500
+    """Cancel user's subscription with options"""
+    try:
+        data = request.get_json() or {}
+        immediate = data.get('immediate', False)
+        
+        user_id = request.current_user.get('user_id') or request.current_user.get('id')
+        user = user_service.get_user_by_id(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        subscription_id = user.get('subscription_id')
+        if not subscription_id:
+            return jsonify({'error': 'No active subscription found'}), 404
+        
+        # Cancel subscription
+        result = stripe_service.cancel_subscription(subscription_id, immediate)
+        
+        if result:
+            return jsonify({
+                'message': 'Subscription cancelled successfully',
+                'immediate': immediate,
+                'cancel_at_period_end': not immediate
+            })
+        else:
+            return jsonify({'error': 'Failed to cancel subscription'}), 500
+            
+    except Exception as e:
+        print(f"Error in cancel_subscription: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/stripe/reactivate-subscription', methods=['POST'])
+@require_auth
+def reactivate_subscription():
+    """Reactivate a subscription that was set to cancel at period end"""
+    try:
+        user_id = request.current_user.get('user_id') or request.current_user.get('id')
+        user = user_service.get_user_by_id(user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        subscription_id = user.get('subscription_id')
+        if not subscription_id:
+            return jsonify({'error': 'No subscription found'}), 404
+        
+        # Reactivate subscription
+        result = stripe_service.reactivate_subscription(subscription_id)
+        
+        if result:
+            return jsonify({
+                'message': 'Subscription reactivated successfully',
+                'cancel_at_period_end': False
+            })
+        else:
+            return jsonify({'error': 'Failed to reactivate subscription'}), 500
+            
+    except Exception as e:
+        print(f"Error in reactivate_subscription: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/stripe/webhook', methods=['POST'])
 def stripe_webhook():
@@ -506,11 +603,82 @@ def subscription_success():
     """Subscription success page"""
     return """
     <html>
-        <head><title>Subscription Successful</title></head>
+        <head>
+            <title>Subscription Successful - Tubby AI</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    margin: 0;
+                    padding: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    border-radius: 16px;
+                    padding: 3rem;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    margin: 2rem;
+                }
+                .success-icon {
+                    width: 80px;
+                    height: 80px;
+                    background: #10b981;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 2rem;
+                }
+                .success-icon svg {
+                    width: 40px;
+                    height: 40px;
+                    color: white;
+                }
+                h1 {
+                    color: #1f2937;
+                    margin-bottom: 1rem;
+                    font-size: 2rem;
+                }
+                p {
+                    color: #6b7280;
+                    margin-bottom: 2rem;
+                    font-size: 1.1rem;
+                    line-height: 1.6;
+                }
+                .btn {
+                    background: #3b82f6;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    transition: background 0.2s;
+                    display: inline-block;
+                }
+                .btn:hover {
+                    background: #2563eb;
+                }
+            </style>
+        </head>
         <body>
-            <h1>Welcome to Tubby Pro!</h1>
-            <p>Your subscription has been activated successfully.</p>
-            <a href="/">Return to Dashboard</a>
+            <div class="container">
+                <div class="success-icon">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <h1>Welcome to Tubby Pro!</h1>
+                <p>Your subscription has been activated successfully. You now have access to all premium features including unlimited AI agent interactions, advanced terminal sessions, and priority support.</p>
+                <a href="/" class="btn">Return to Dashboard</a>
+            </div>
         </body>
     </html>
     """
@@ -520,11 +688,90 @@ def subscription_cancel():
     """Subscription canceled page"""
     return """
     <html>
-        <head><title>Subscription Canceled</title></head>
+        <head>
+            <title>Subscription Canceled - Tubby AI</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    margin: 0;
+                    padding: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    border-radius: 16px;
+                    padding: 3rem;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    margin: 2rem;
+                }
+                .cancel-icon {
+                    width: 80px;
+                    height: 80px;
+                    background: #ef4444;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto 2rem;
+                }
+                .cancel-icon svg {
+                    width: 40px;
+                    height: 40px;
+                    color: white;
+                }
+                h1 {
+                    color: #1f2937;
+                    margin-bottom: 1rem;
+                    font-size: 2rem;
+                }
+                p {
+                    color: #6b7280;
+                    margin-bottom: 2rem;
+                    font-size: 1.1rem;
+                    line-height: 1.6;
+                }
+                .btn {
+                    background: #3b82f6;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    text-decoration: none;
+                    font-weight: 600;
+                    transition: background 0.2s;
+                    display: inline-block;
+                    margin: 0 0.5rem;
+                }
+                .btn:hover {
+                    background: #2563eb;
+                }
+                .btn-secondary {
+                    background: #6b7280;
+                }
+                .btn-secondary:hover {
+                    background: #4b5563;
+                }
+            </style>
+        </head>
         <body>
-            <h1>Subscription Canceled</h1>
-            <p>You can try again anytime.</p>
-            <a href="/">Return to Dashboard</a>
+            <div class="container">
+                <div class="cancel-icon">
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <h1>Subscription Canceled</h1>
+                <p>No worries! You can upgrade to a premium plan anytime to unlock advanced features and unlimited access to AI agents.</p>
+                <a href="/" class="btn">Return to Dashboard</a>
+                <a href="/#pricing" class="btn btn-secondary">View Plans</a>
+            </div>
         </body>
     </html>
     """
@@ -1279,8 +1526,8 @@ def handle_command(data):
 
 if __name__ == '__main__':
     try:
-        socketio.run(app, host='0.0.0.0', port=5001, debug=False, allow_unsafe_werkzeug=True)
+        socketio.run(app, host='0.0.0.0', port=5004, debug=False, allow_unsafe_werkzeug=True)
     except Exception as e:
         print(f"Error starting server: {e}")
         # Fallback to regular Flask
-        app.run(host='0.0.0.0', port=5001, debug=False) 
+        app.run(host='0.0.0.0', port=5004, debug=False) 
