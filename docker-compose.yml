@@ -1,4 +1,19 @@
 services:
+  # MCP Router
+  mcp-router:
+    build:
+      context: ./containers/mcp-router
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Main application
   ai-agent-platform:
     build: .
