@@ -95,21 +95,27 @@ class StripeService:
                 try:
                     print(f"🔍 Checking existing customer ID: {user_data['stripe_customer_id']}")
                     customer = stripe.Customer.retrieve(user_data['stripe_customer_id'])
-                    # If we get here, customer exists and is not deleted
-                    print(f"✅ Found existing customer: {customer.id}")
-                    return customer
-                except stripe.error.InvalidRequestError:
-                    print(f"⚠️  Invalid customer ID, will create new customer")
+                    # Some deleted customers return an object with {'id': 'cus_xxx', 'deleted': True}
+                    is_deleted = False
+                    try:
+                        # Safely check for the 'deleted' flag using mapping access to avoid __getattr__ pitfalls
+                        if 'deleted' in customer and customer['deleted'] is True:
+                            is_deleted = True
+                    except Exception:
+                        # Any exception here means we cannot reliably determine, treat as deleted
+                        is_deleted = True
+                    
+                    if not is_deleted:
+                        print(f"✅ Found existing customer and it is active: {user_data['stripe_customer_id']}")
+                        return customer
+                    else:
+                        print("⚠️  Customer record is marked deleted – will create a brand-new customer")
+                        # Continue to create new customer below
+                        pass
+                except stripe.error.InvalidRequestError as e:
+                    print(f"⚠️  Invalid customer ID ({e}), will create new customer")
                     # Customer ID is invalid, continue to create new customer
                     pass
-                except AttributeError as e:
-                    if 'deleted' in str(e):
-                        print(f"⚠️  Customer is deleted, will create new customer")
-                        # Customer is deleted, continue to create new customer
-                        pass
-                    else:
-                        # Re-raise if it's a different AttributeError
-                        raise
             
             # Search for existing customer by email
             print(f"🔍 Searching for customer by email: {user_data.get('email')}")
@@ -152,6 +158,21 @@ class StripeService:
                 print("Failed to get or create Stripe customer")
                 return None
             
+            # Store customer ID to avoid AttributeError issues
+            try:
+                customer_id = customer.id
+            except AttributeError as e:
+                if 'deleted' in str(e):
+                    print("Customer is deleted, creating new customer")
+                    # Create a new customer
+                    customer = self.create_customer(user)
+                    if not customer:
+                        print("Failed to create new customer")
+                        return None
+                    customer_id = customer.id
+                else:
+                    raise
+            
             # Get price ID for the plan
             price_id = self.price_ids.get(plan_type)
             if not price_id:
@@ -160,7 +181,7 @@ class StripeService:
             
             # Create checkout session with comprehensive configuration
             session = stripe.checkout.Session.create(
-                customer=customer.id,
+                customer=customer_id,
                 payment_method_types=['card'],
                 line_items=[{
                     'price': price_id,

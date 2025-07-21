@@ -25,16 +25,26 @@ A revolutionary web-based platform that enables seamless communication between A
 - **🎨 Modern Dark UI**: Beautiful, responsive interface
 - **🐳 Docker Integration**: Containerized AI agents
 
-### 🔧 **In Progress:**
-- **💳 Stripe Integration**: Account under review (2-3 days expected)
-- **📱 Subscription Management**: Waiting for Stripe account approval
-- **🔒 Payment Processing**: Blocked by Stripe account review
+### ✅ **Fully Working:**
+- **💳 Stripe Integration**: Payment processing fully functional
+- **📱 Subscription Management**: Live subscription plans working
+- **🔒 Payment Processing**: Stripe checkout sessions working
+- **🔐 Authentication System**: Google OAuth fully functional
+- **👤 User Management**: User lookup and creation working
+- **🔗 MCP Inter-Terminal Communication**: Real-time messaging and command routing
+- **🤖 Multi-Agent Interface**: Claude Code, Gemini CLI, and System terminals
+- **⚡ Real-time Communication**: WebSocket-based command execution
+- **📊 Live Container Monitoring**: Real-time status indicators
+- **🎨 Modern Dark UI**: Beautiful, responsive interface
+- **🐳 Docker Integration**: Containerized AI agents
 
 ### 🚀 **Recent Updates:**
-- **Authentication Bug Fixed**: User lookup by Supabase ID working
-- **Stripe Configuration Complete**: Products created, price IDs configured
-- **Backend Stable**: Running without errors on port 5004
-- **Frontend Updated**: Running on port 3001 with proper proxy configuration
+- **✅ Stripe Integration Fixed**: `AttributeError: deleted` issue resolved
+- **✅ Payment Processing Live**: Stripe checkout sessions working
+- **✅ Backend Stable**: Running without errors on port 5004
+- **✅ Frontend Updated**: Running on port 3001 with proper proxy configuration
+- **✅ Authentication Bug Fixed**: User lookup by Supabase ID working
+- **✅ Stripe Configuration Complete**: Products created, price IDs configured
 
 ---
 
@@ -50,7 +60,7 @@ A revolutionary web-based platform that enables seamless communication between A
 - **🔒 Secure API Management**: Environment-based API key management with encryption
 - **📱 Responsive Design**: Works seamlessly on desktop and mobile devices
 - **🔧 Advanced Features**: Voice input, screenshots, copy/paste, and command history
-- **💳 Subscription Management**: Stripe integration for subscription plans (pending account review)
+- **💳 Subscription Management**: Stripe integration for subscription plans (fully functional)
 - **👤 User Profiles**: Personalized experience with user-specific settings and data
 
 ## 🏗️ Architecture
@@ -65,6 +75,23 @@ The application consists of:
 - **System Terminal** (Port 5004): Local system command execution
 - **Redis** (Port 6379): Session management, caching, and shared data storage
 - **Supabase**: Authentication, user management, and database services
+
+## 🔧 Recent Fixes & Improvements
+
+### **Stripe Integration Fix (Latest)**
+- **Issue Resolved**: `AttributeError: deleted` during customer retrieval
+- **Solution**: Robust error handling for Stripe customer objects
+- **Status**: ✅ Payment processing fully functional
+- **Impact**: Users can now successfully subscribe to plans
+
+### **Technical Details**
+The fix involved handling Stripe's customer object lifecycle:
+- Deleted customers return objects with `{'deleted': True}` flag
+- Added proper error handling for `AttributeError` exceptions
+- Implemented fallback logic to create new customers when needed
+- Ensured checkout sessions are created successfully
+
+---
 
 ## 🚀 Quick Start
 
@@ -115,12 +142,12 @@ The application consists of:
    GOOGLE_API_KEY=your-google-api-key
    OPENAI_API_KEY=your-openai-api-key
    
-   # Stripe Configuration (Optional - Account under review)
+   # Stripe Configuration (Required for subscription features)
    STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
    STRIPE_SECRET_KEY=your-stripe-secret-key
    STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
    STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
-   STRIPE_PRO_PRICE_ID=price_1RnI8LKOB6ANfJLNRNuYrViX
+   STRIPE_PRO_PRICE_ID=price_1RnI8LKoB6ANfJLNRNuYrViX
    STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNWZTZ5M8A
    ```
 
@@ -168,7 +195,7 @@ Tubby AI supports multiple authentication methods:
 ### **User Management** ✅ **WORKING**
 - Personalized API key storage
 - User-specific settings and preferences
-- Subscription management with Stripe (pending account review)
+- Subscription management with Stripe (fully functional)
 - Secure session management with JWT tokens
 
 ## 🎯 Usage
@@ -458,10 +485,12 @@ If you don't have API keys, the containers will still run but CLI functionality 
 - Review the `AUTH_SETUP_GUIDE.md` for detailed setup instructions
 
 **Stripe Integration Issues**
-- Stripe account is currently under review (2-3 days expected)
-- All payment processing is blocked until review completes
-- This is a Stripe policy, not a code issue
-- Once review completes, integration will work immediately
+- Stripe integration is now fully functional
+- If you encounter "No such price" errors, ensure your API key mode matches your price IDs:
+  - Test API keys can only access test price IDs
+  - Live API keys can only access live price IDs
+- If you encounter `AttributeError: deleted`, restart the backend to load the latest code
+- All payment processing features are working correctly
 
 ## 🛑 Stopping the Application
 
@@ -503,7 +532,7 @@ If you encounter any issues or have questions:
 - [x] **Google OAuth Integration** - ✅ Complete
 - [x] **GitHub OAuth Integration** - ✅ Complete
 - [x] **Supabase Database Integration** - ✅ Complete
-- [x] **Stripe Integration Setup** - ✅ Complete (pending account review)
+- [x] **Stripe Integration Setup** - ✅ Complete (fully functional)
 - [ ] **Persistent Conversation Storage**
 - [ ] **Advanced MCP Function Library**
 - [ ] **Plugin System for Custom Integrations**
