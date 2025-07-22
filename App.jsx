@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { Button } from './components/ui/button.jsx'
 import { Input } from './components/ui/input.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.jsx'
@@ -12,8 +13,9 @@ import { AuthProvider, useAuth } from './src/components/AuthManager.jsx'
 import AuthContainer from './src/components/AuthContainer.jsx'
 import UserProfile from './src/components/UserProfile.jsx'
 import SubscriptionPlans from './src/components/SubscriptionPlans.jsx'
+import AuthCallback from './src/components/AuthCallback.jsx'
 
-function App() {
+function MainApp() {
   const { currentUser, isAuthenticated, loading } = useAuth()
   const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
@@ -1400,6 +1402,15 @@ function App() {
         />
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   )
 }
 

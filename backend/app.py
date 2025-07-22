@@ -17,7 +17,10 @@ from services.user_service import UserService
 from services.stripe_service import StripeService
 
 # Load .env from parent directory (project root)
-load_dotenv('../.env')
+try:
+    load_dotenv('../.env')
+except Exception:
+    pass  # Use defaults if .env file doesn't exist or can't be loaded
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
@@ -307,7 +310,7 @@ def auth_callback():
                 
                 if (access_token) {{
                     // Send token to backend via POST
-                    fetch(window.location.origin + '/auth/callback', {{
+                    fetch('http://localhost:5004/auth/callback', {{
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',

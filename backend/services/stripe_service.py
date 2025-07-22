@@ -5,7 +5,10 @@ from services.user_service import UserService
 from dotenv import load_dotenv
 
 # Load environment variables from the correct path
-load_dotenv('../.env')  # Load from project root
+try:
+    load_dotenv('../.env')  # Load from project root
+except Exception:
+    pass  # Use defaults if .env file doesn't exist or can't be loaded
 
 class StripeService:
     def __init__(self):
