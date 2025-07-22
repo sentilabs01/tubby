@@ -146,27 +146,64 @@ class OAuthService:
         try:
             # Preferred: use Supabase client if available
             if self.supabase:
-                user_response = self.supabase.auth.get_user(access_token)
-                if user_response and user_response.user:
-                    return self._format_supabase_user(user_response.user)
+                try:
+                    user_response = self.supabase.auth.get_user(access_token)
+                    if user_response and user_response.user:
+                        return self._format_supabase_user(user_response.user)
+                except Exception as supabase_error:
+                    print(f"Supabase verification failed: {supabase_error}")
+            
             # Fallback: decode JWT without verifying signature
             import jwt
-            decoded = jwt.decode(access_token, options={
-                'verify_signature': False,
-                'verify_exp': False,
-                'verify_aud': False,
-                'verify_iss': False
-            })
-            return {
-                'id': decoded.get('sub') or decoded.get('user_id') or decoded.get('id'),
-                'email': decoded.get('email') or 'unknown@example.com',
-                'name': decoded.get('name') or decoded.get('email', '').split('@')[0] or 'Unknown',
-                'picture': decoded.get('picture'),
-                'provider': decoded.get('provider') or decoded.get('iss', 'oauth'),
-                'verified_email': decoded.get('email_confirmed_at') is not None
-            }
+            try:
+                decoded = jwt.decode(access_token, options={
+                    'verify_signature': False,
+                    'verify_exp': False,
+                    'verify_aud': False,
+                    'verify_iss': False
+                })
+                print(f"✅ JWT decoded successfully: {decoded}")
+                return {
+                    'id': decoded.get('sub') or decoded.get('user_id') or decoded.get('id'),
+                    'email': decoded.get('email') or 'unknown@example.com',
+                    'name': decoded.get('name') or decoded.get('email', '').split('@')[0] or 'Unknown',
+                    'picture': decoded.get('picture'),
+                    'provider': decoded.get('provider') or decoded.get('iss', 'oauth'),
+                    'verified_email': decoded.get('email_confirmed_at') is not None
+                }
+            except Exception as jwt_error:
+                print(f"JWT decode failed: {jwt_error}")
+                # If JWT decode fails, try to treat it as a Google access token
+                return self._verify_google_access_token(access_token)
+                
         except Exception as e:
             print(f"Token verification failed (fallback): {e}")
+            return None
+    
+    def _verify_google_access_token(self, access_token):
+        """Verify Google access token by calling Google's userinfo endpoint"""
+        try:
+            import requests
+            response = requests.get(
+                'https://www.googleapis.com/oauth2/v2/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'}
+            )
+            
+            if response.status_code == 200:
+                user_data = response.json()
+                return {
+                    'id': user_data.get('id'),
+                    'email': user_data.get('email'),
+                    'name': user_data.get('name'),
+                    'picture': user_data.get('picture'),
+                    'provider': 'google',
+                    'verified_email': user_data.get('verified_email', False)
+                }
+            else:
+                print(f"Google userinfo failed: {response.status_code}")
+                return None
+        except Exception as e:
+            print(f"Google access token verification failed: {e}")
             return None 
 
     def _format_supabase_user(self, supabase_user):

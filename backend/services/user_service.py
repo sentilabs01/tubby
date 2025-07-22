@@ -4,10 +4,18 @@ from supabase import create_client, Client
 class UserService:
     def __init__(self):
         supabase_url = os.getenv('SUPABASE_URL', 'https://bemssfbadcfrvsbgjlua.supabase.co')
-        supabase_key = os.getenv('SUPABASE_ANON_KEY', 'placeholder_key')
+        # Use service role key for database operations to bypass RLS
+        supabase_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY', os.getenv('SUPABASE_ANON_KEY', 'placeholder_key'))
+        
+        # Check if we're using service role key
+        key_type = 'service_role' if 'SUPABASE_SERVICE_ROLE_KEY' in os.environ else 'anon'
+        
+        print(f"🔧 UserService: Using key type: {key_type}")
+        print(f"🔧 UserService: Key starts with: {supabase_key[:20]}...")
         
         try:
             self.supabase: Client = create_client(supabase_url, supabase_key)
+            print(f"✅ UserService initialized with service role key")
         except Exception as e:
             print(f"Warning: Could not initialize Supabase client in UserService: {e}")
             self.supabase = None

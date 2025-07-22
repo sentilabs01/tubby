@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Routes, Route } from 'react-router-dom'
 import { Button } from './components/ui/button.jsx'
 import { Input } from './components/ui/input.jsx'
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card.jsx'
@@ -12,8 +13,9 @@ import { AuthProvider, useAuth } from './src/components/AuthManager.jsx'
 import AuthContainer from './src/components/AuthContainer.jsx'
 import UserProfile from './src/components/UserProfile.jsx'
 import SubscriptionPlans from './src/components/SubscriptionPlans.jsx'
+import AuthCallback from './src/components/AuthCallback.jsx'
 
-function App() {
+function MainApp() {
   const { currentUser, isAuthenticated, loading } = useAuth()
   const [socket, setSocket] = useState(null)
   const [connected, setConnected] = useState(false)
@@ -21,9 +23,9 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [showSubscription, setShowSubscription] = useState(false)
   const [terminalLayouts, setTerminalLayouts] = useState({
-    terminal1: { x: 0, y: 0, width: 400, height: 400, isDragging: false, isResizing: false },
-    terminal2: { x: 420, y: 0, width: 400, height: 400, isDragging: false, isResizing: false },
-    terminal3: { x: 840, y: 0, width: 400, height: 400, isDragging: false, isResizing: false }
+    terminal1: { x: 0, y: 0, width: 400, height: 600, isDragging: false, isResizing: false },
+    terminal2: { x: 420, y: 0, width: 400, height: 600, isDragging: false, isResizing: false },
+    terminal3: { x: 840, y: 0, width: 400, height: 600, isDragging: false, isResizing: false }
   })
   const [terminals, setTerminals] = useState({
     terminal1: { history: [], input: '', commandHistory: [], historyIndex: -1 }, // Gemini CLI Terminal 1
@@ -31,6 +33,8 @@ function App() {
     terminal3: { history: [], input: '', commandHistory: [], historyIndex: -1 }  // System Terminal
   })
   
+  const [dynamicTerminals, setDynamicTerminals] = useState({})
+  const [nextTerminalId, setNextTerminalId] = useState(4)
   const [sharedClipboard, setSharedClipboard] = useState('')
   const [terminalMessages, setTerminalMessages] = useState([])
   const [attachmentMenus, setAttachmentMenus] = useState({
@@ -38,6 +42,41 @@ function App() {
     terminal2: false,
     terminal3: false
   })
+
+  // Add prompt examples for each terminal
+  const [promptExamples] = useState({
+    terminal1: [
+      { text: "Help me write a React component", command: 'gemini --prompt "Create a React component for a todo list"', category: "Development" },
+      { text: "Debug this JavaScript code", command: 'gemini --prompt "Debug this code: function add(a,b) { return a + b }"', category: "Debugging" },
+      { text: "Explain a concept", command: 'gemini --prompt "Explain async/await in JavaScript"', category: "Learning" },
+      { text: "Send message to Terminal 2", command: '@terminal2 Hello from Terminal 1!', category: "Cross-Terminal" },
+      { text: "Route command to System Terminal", command: '>>terminal3 ls -la', category: "Cross-Terminal" }
+    ],
+    terminal2: [
+      { text: "Generate API documentation", command: 'gemini --prompt "Generate OpenAPI spec for a user management API"', category: "Documentation" },
+      { text: "Optimize database query", command: 'gemini --prompt "Optimize this SQL query: SELECT * FROM users WHERE active = 1"', category: "Database" },
+      { text: "Create test cases", command: 'gemini --prompt "Write unit tests for a login function"', category: "Testing" },
+      { text: "Collaborate with Terminal 1", command: 'collab terminal1 "Help me review this code"', category: "Cross-Terminal" },
+      { text: "Broadcast to all terminals", command: 'mcp broadcast "Starting deployment process"', category: "Cross-Terminal" }
+    ],
+    terminal3: [
+      { text: "List files in current directory", command: 'dir', category: "File System" },
+      { text: "Check system status", command: 'systeminfo', category: "System" },
+      { text: "Run a Python script", command: 'python script.py', category: "Execution" },
+      { text: "Send command to Gemini Terminal", command: '>>terminal1 gemini --prompt "What is the weather like?"', category: "Cross-Terminal" },
+      { text: "Share data with other terminals", command: 'mcp set_shared_data {"status": "ready"}', category: "Cross-Terminal" }
+    ]
+  })
+
+  // Add cross-terminal quick actions
+  const [quickActions] = useState([
+    { label: "📤 Send to Terminal 2", action: (terminalId) => `@terminal2 Message from ${terminalId}` },
+    { label: "🔄 Route to System", action: (terminalId) => `>>terminal3 dir` },
+    { label: "🤝 Collaborate", action: (terminalId) => `collab ${terminalId === 'terminal1' ? 'terminal2' : 'terminal1'} Let's work together` },
+    { label: "📢 Broadcast", action: () => `broadcast "Important update from terminal"` },
+    { label: "💾 Share Data", action: () => `share {"timestamp": "${new Date().toISOString()}"}` },
+    { label: "📖 Get Shared Data", action: () => `get shared data` }
+  ])
   
   const terminalRefs = {
     terminal1: useRef(null),
@@ -347,12 +386,27 @@ function App() {
   const getTerminalIcon = (terminalId) => {
     switch (terminalId) {
       case 'terminal1':
-        return <Cpu className="w-4 h-4" />
       case 'terminal2':
         return <Cpu className="w-4 h-4" />
       case 'terminal3':
         return <Terminal className="w-4 h-4" />
       default:
+        // Handle dynamic terminals
+        const dynamicTerminal = dynamicTerminals[terminalId]
+        if (dynamicTerminal) {
+          switch (dynamicTerminal.type) {
+            case 'claude':
+              return <Cpu className="w-4 h-4 text-orange-400" />
+            case 'gemini':
+              return <Cpu className="w-4 h-4 text-purple-400" />
+            case 'opencode':
+              return <Cpu className="w-4 h-4 text-blue-400" />
+            case 'system':
+              return <Terminal className="w-4 h-4" />
+            default:
+              return <Cpu className="w-4 h-4" />
+          }
+        }
         return <Terminal className="w-4 h-4" />
     }
   }
@@ -366,6 +420,22 @@ function App() {
       case 'terminal3':
         return 'System Terminal'
       default:
+        // Handle dynamic terminals
+        const dynamicTerminal = dynamicTerminals[terminalId]
+        if (dynamicTerminal) {
+          switch (dynamicTerminal.type) {
+            case 'claude':
+              return 'Claude Code Terminal'
+            case 'gemini':
+              return 'Gemini Code Terminal'
+            case 'opencode':
+              return 'Open Code Terminal'
+            case 'system':
+              return 'System Terminal'
+            default:
+              return 'AI Terminal'
+          }
+        }
         return 'Terminal'
     }
   }
@@ -461,6 +531,15 @@ function App() {
         break
       case 'collaboration':
         handleMCPCollaboration(sourceTerminalId, mcp.partner, mcp.task, timestamp)
+        break
+      case 'broadcast':
+        handleMCPBroadcast(sourceTerminalId, mcp.message, timestamp)
+        break
+      case 'share':
+        handleMCPShare(sourceTerminalId, mcp.data, timestamp)
+        break
+      case 'get_shared':
+        handleMCPGetShared(sourceTerminalId, timestamp)
         break
       default:
         console.error('Unknown MCP type:', mcp.type)
@@ -598,9 +677,81 @@ function App() {
       'terminal3': 'terminal3',
       'gemini1': 'terminal1',
       'gemini2': 'terminal2',
+      'gemini-1': 'terminal1',
+      'gemini-2': 'terminal2',
       'system': 'terminal3'
     }
     return mapping[target.toLowerCase()]
+  }
+
+  // Handle broadcast to all terminals
+  const handleMCPBroadcast = (sourceTerminalId, message, timestamp) => {
+    const allTerminals = ['terminal1', 'terminal2', 'terminal3']
+    
+    allTerminals.forEach(terminalId => {
+      if (terminalId !== sourceTerminalId) {
+        setTerminals(prev => ({
+          ...prev,
+          [terminalId]: {
+            ...prev[terminalId],
+            history: [...prev[terminalId].history, {
+              command: '',
+              output: `📢 Broadcast from ${sourceTerminalId}: ${message}`,
+              type: 'mcp',
+              timestamp
+            }]
+          }
+        }))
+      }
+    })
+    
+    // Add confirmation to source terminal
+    setTerminals(prev => ({
+      ...prev,
+      [sourceTerminalId]: {
+        ...prev[sourceTerminalId],
+        history: [...prev[sourceTerminalId].history, {
+          command: `broadcast ${message}`,
+          output: `📢 Message broadcasted to all terminals`,
+          type: 'mcp',
+          timestamp
+        }]
+      }
+    }))
+  }
+
+  // Handle sharing data between terminals
+  const handleMCPShare = (sourceTerminalId, data, timestamp) => {
+    setSharedClipboard(data)
+    
+    setTerminals(prev => ({
+      ...prev,
+      [sourceTerminalId]: {
+        ...prev[sourceTerminalId],
+        history: [...prev[sourceTerminalId].history, {
+          command: `share ${data}`,
+          output: `💾 Data shared: ${data}`,
+          type: 'mcp',
+          timestamp
+        }]
+      }
+    }))
+  }
+
+  // Handle getting shared data
+  const handleMCPGetShared = (sourceTerminalId, timestamp) => {
+    setTerminals(prev => ({
+      ...prev,
+      [sourceTerminalId]: {
+        ...prev[sourceTerminalId],
+        history: [...prev[sourceTerminalId].history, {
+          command: 'get shared data',
+          output: sharedClipboard ? `📖 Shared data: ${sharedClipboard}` : '📖 No shared data available',
+          type: 'mcp',
+          timestamp
+        }]
+      }
+    }))
   }
 
   const handleVoiceInput = async (terminalId) => {
@@ -658,6 +809,95 @@ function App() {
       terminal2: false,
       terminal3: false
     })
+  }
+
+  // Handle quick action clicks
+  const handleQuickAction = (terminalId, action) => {
+    const command = action(terminalId)
+    setTerminals(prev => ({
+      ...prev,
+      [terminalId]: {
+        ...prev[terminalId],
+        input: command
+      }
+    }))
+  }
+
+  // Handle prompt example clicks
+  const handlePromptExample = (terminalId, example) => {
+    setTerminals(prev => ({
+      ...prev,
+      [terminalId]: {
+        ...prev[terminalId],
+        input: example.command
+      }
+    }))
+  }
+
+  // Clear message history
+  const clearMessageHistory = () => {
+    setTerminalMessages([])
+  }
+
+  const spawnTerminal = (type) => {
+    const terminalId = `terminal${nextTerminalId}`
+    const newTerminal = {
+      history: [],
+      input: '',
+      commandHistory: [],
+      historyIndex: -1,
+      type: type // 'claude', 'gemini', 'opencode', 'system'
+    }
+    
+    const newLayout = {
+      x: 100 + (nextTerminalId * 50),
+      y: 100 + (nextTerminalId * 30),
+      width: 400,
+      height: 600,
+      isDragging: false,
+      isResizing: false
+    }
+    
+    setDynamicTerminals(prev => ({
+      ...prev,
+      [terminalId]: newTerminal
+    }))
+    
+    setTerminalLayouts(prev => ({
+      ...prev,
+      [terminalId]: newLayout
+    }))
+    
+    setNextTerminalId(prev => prev + 1)
+    
+    // Send spawn request to backend
+    if (socket) {
+      socket.emit('spawn_terminal', { terminalId, type })
+    }
+  }
+
+  const deleteTerminal = (terminalId) => {
+    // Only allow deletion of dynamic terminals (not the default 3)
+    if (terminalId === 'terminal1' || terminalId === 'terminal2' || terminalId === 'terminal3') {
+      return
+    }
+    
+    setDynamicTerminals(prev => {
+      const newDynamicTerminals = { ...prev }
+      delete newDynamicTerminals[terminalId]
+      return newDynamicTerminals
+    })
+    
+    setTerminalLayouts(prev => {
+      const newLayouts = { ...prev }
+      delete newLayouts[terminalId]
+      return newLayouts
+    })
+    
+    // Send delete request to backend
+    if (socket) {
+      socket.emit('delete_terminal', { terminalId })
+    }
   }
 
   // Show login page if not authenticated
@@ -728,6 +968,43 @@ function App() {
                 Plans
               </Button>
               
+              {/* Spawn Terminal Buttons */}
+              <div className="flex items-center gap-1 ml-4">
+                <details className="relative">
+                  <summary className="cursor-pointer bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium text-gray-300 border border-gray-600">
+                    + Spawn Terminal
+                  </summary>
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-600 rounded-md shadow-lg z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => spawnTerminal('claude')}
+                        className="block w-full text-left px-4 py-2 text-sm text-orange-400 hover:bg-gray-700"
+                      >
+                        Claude Code
+                      </button>
+                      <button
+                        onClick={() => spawnTerminal('gemini')}
+                        className="block w-full text-left px-4 py-2 text-sm text-purple-400 hover:bg-gray-700"
+                      >
+                        Gemini Code
+                      </button>
+                      <button
+                        onClick={() => spawnTerminal('opencode')}
+                        className="block w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-gray-700"
+                      >
+                        Open Code
+                      </button>
+                      <button
+                        onClick={() => spawnTerminal('system')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-700"
+                      >
+                        System Terminal
+                      </button>
+                    </div>
+                  </div>
+                </details>
+              </div>
+              
               {/* User Avatar */}
               {currentUser && (
                 <div className="flex items-center gap-2 mr-2">
@@ -775,6 +1052,48 @@ function App() {
                 </Button>
               )}
             </div>
+            
+            {/* Cross-Terminal Communication Status */}
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-blue-500 mr-2 animate-pulse"></div>
+              <span className="text-sm text-blue-400">Cross-Terminal Active</span>
+            </div>
+            
+            {/* Recent Messages Counter */}
+            {terminalMessages.length > 0 && (
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
+                <span className="text-sm text-yellow-400">
+                  {terminalMessages.length} messages
+                </span>
+                <Button
+                  onClick={clearMessageHistory}
+                  size="sm"
+                  variant="ghost"
+                  className="ml-2 text-xs text-yellow-400 hover:text-yellow-300"
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+            
+            {/* Shared Clipboard Status */}
+            {sharedClipboard && (
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                <span className="text-sm text-green-400">
+                  Shared data available
+                </span>
+                <Button
+                  onClick={() => setSharedClipboard('')}
+                  size="sm"
+                  variant="ghost"
+                  className="ml-2 text-xs text-green-400 hover:text-green-300"
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
             {containerStatus.gemini && (
               <div className="flex items-center">
                 <Cpu className="w-4 h-4 mr-1" />
@@ -841,22 +1160,56 @@ function App() {
                     </div>
                   ) : terminals[terminalId].history.length === 0 ? (
                     <div className="text-gray-500">
-                      Terminal ready. Type commands below.
-                      {terminalId === 'terminal1' && (
-                        <div className="mt-2 text-xs">
-                          Try: <span className="text-blue-400">gemini --help</span>
+                      {/* Add collapsed Quickstart workflows */}
+                      <div className="mb-4">
+                        <div className="text-sm font-semibold mb-2">🚀 Quickstart</div>
+                        {terminalId === 'terminal1' && (
+                          <details className="bg-gray-800 p-2 rounded mb-2">
+                            <summary className="cursor-pointer text-xs font-medium">Quickstart 1: Collaborative Code Refactoring</summary>
+                            <div className="text-xs ml-4 mt-2 space-y-1">
+                              <div>gemini --prompt "Here's my Python function, please refactor it for clarity."</div>
+                              <div className="text-gray-500">Then Terminal 2 will: collab terminal1 "Nice refactor! Now please add unit tests for edge cases."</div>
+                              <div className="text-gray-500">Then Terminal 2 will: gemini --prompt "Write pytest tests for the refactored function."</div>
+                              <div className="text-gray-500">Then System will: pytest -q</div>
+                              <div className="text-gray-500">Then System will: collab terminal1 "✅ All tests passed"</div>
+                            </div>
+                          </details>
+                        )}
+                        {terminalId === 'terminal2' && (
+                          <details className="bg-gray-800 p-2 rounded mb-2">
+                            <summary className="cursor-pointer text-xs font-medium">Quickstart 2: Live API Doc + Smoke Test</summary>
+                            <div className="text-xs ml-4 mt-2 space-y-1">
+                              <div className="text-gray-500">Terminal 1 will: gemini --prompt "Generate OpenAPI spec for our /api/user CRUD endpoints."</div>
+                              <div>collab terminal1 "Got the spec—please turn it into Markdown API docs."</div>
+                              <div>gemini --prompt "Write a README.md section showing example requests/responses."</div>
+                              <div className="text-gray-500">Then System will: curl http://localhost:5004/api/user --show-status</div>
+                              <div className="text-gray-500">Then System will: mcp broadcast "200 OK, endpoint live"</div>
+                            </div>
+                          </details>
+                        )}
+                        {terminalId === 'terminal3' && (
+                          <details className="bg-gray-800 p-2 rounded mb-2">
+                            <summary className="cursor-pointer text-xs font-medium">Quickstart 3: Rapid UI Scaffold & Preview</summary>
+                            <div className="text-xs ml-4 mt-2 space-y-1">
+                              <div className="text-gray-500">Terminal 1 will: gemini --prompt "Scaffold a React &lt;LoginForm&gt; component with Tailwind classes."</div>
+                              <div className="text-gray-500">Terminal 2 will: collab terminal1 "Looks good—please make it accessible (ARIA labels, focus states)."</div>
+                              <div className="text-gray-500">Terminal 2 will: gemini --prompt "Add keyboard-nav support and semantic HTML."</div>
+                              <div>npm run dev</div>
+                              <div>mcp broadcast "App running at http://localhost:3003 → check LoginForm"</div>
+                            </div>
+                          </details>
+                        )}
+                      </div>
+                      
+                      <div className="text-xs text-gray-600">
+                        <div className="font-semibold mb-1">🔗 Cross-Terminal Commands:</div>
+                        <div className="space-y-1">
+                          <div><span className="text-blue-400">@terminal2</span> message - Send message</div>
+                          <div><span className="text-blue-400">{'>>'}terminal3</span> command - Route command</div>
+                          <div><span className="text-blue-400">collab terminal1</span> task - Collaborate</div>
+                          <div><span className="text-blue-400">mcp broadcast</span> message - Broadcast to all</div>
                         </div>
-                      )}
-                      {terminalId === 'terminal2' && (
-                        <div className="mt-2 text-xs">
-                          Try: <span className="text-blue-400">gemini --prompt "Hello"</span>
-                        </div>
-                      )}
-                      {terminalId === 'terminal3' && (
-                        <div className="mt-2 text-xs">
-                          Try: <span className="text-blue-400">ls -la</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ) : (
                     terminals[terminalId].history.map((entry, index) => (
@@ -868,6 +1221,7 @@ function App() {
                           entry.type === 'error' ? 'text-red-400' : 
                           entry.type === 'claude' ? 'text-blue-400' :
                           entry.type === 'gemini' ? 'text-purple-400' :
+                          entry.type === 'mcp' ? 'text-yellow-400 bg-yellow-900/20 p-2 rounded border-l-2 border-yellow-500' :
                           'text-gray-300'
                         }`}>
                           {entry.output}
@@ -901,67 +1255,126 @@ function App() {
                             e.preventDefault()
                             handlePaste(terminalId)
                           }
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault()
+                          navigateHistory(terminalId, 'up')
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          navigateHistory(terminalId, 'down')
                         }
                       }}
-                      placeholder={connected ? "Enter command..." : "Connecting to server..."}
-                      className={`bg-gray-800 border-gray-600 text-white pr-12 ${!connected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      disabled={!connected}
+                      placeholder="Enter command..."
+                      className="bg-black border-gray-600 text-gray-300 placeholder-gray-500"
                     />
-                    <Button
-                      onClick={() => toggleAttachmentMenu(terminalId)}
-                      size="sm"
-                      variant="ghost"
-                      className="paperclip-button absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                      disabled={!connected}
-                    >
-                      <Paperclip className="w-4 h-4" />
-                    </Button>
-                    
-                    {/* Attachment Menu */}
-                    {attachmentMenus[terminalId] && (
-                      <div className="attachment-menu absolute bottom-full right-0 mb-2 bg-gray-800 border border-gray-600 rounded-lg shadow-lg p-2 z-10">
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            onClick={() => {
-                              handleScreenshot(terminalId)
-                              toggleAttachmentMenu(terminalId)
-                            }}
-                            size="sm"
-                            variant="ghost"
-                            className="text-gray-400 hover:text-white justify-start"
-                          >
-                            📸 Screenshot
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              handleVoiceInput(terminalId)
-                              toggleAttachmentMenu(terminalId)
-                            }}
-                            size="sm"
-                            variant="ghost"
-                            className="text-gray-400 hover:text-white justify-start"
-                          >
-                            🎤 Voice Input
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                   <Button
-                    onClick={() => executeCommand(terminalId)}
-                    disabled={!connected || !terminals[terminalId].input.trim()}
+                    onClick={() => toggleAttachmentMenu(terminalId)}
                     size="sm"
-                    className={!connected ? 'opacity-50' : ''}
+                    variant="outline"
+                    className="text-gray-400 hover:text-gray-300"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={() => executeCommand(terminalId)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
                   >
                     <Play className="w-4 h-4" />
                   </Button>
                 </div>
-                
-                {/* Resize Handle */}
-                <div
-                  className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-gray-600 rounded-tl"
-                  onMouseDown={(e) => handleMouseDown(e, terminalId, 'resize')}
-                />
+              </CardContent>
+            </Card>
+          ))}
+          
+          {/* Render dynamic terminals */}
+          {Object.keys(dynamicTerminals).map((terminalId) => (
+            <Card 
+              key={terminalId} 
+              className="bg-black border-gray-800 absolute"
+              style={{
+                left: terminalLayouts[terminalId].x,
+                top: terminalLayouts[terminalId].y,
+                width: terminalLayouts[terminalId].width,
+                height: terminalLayouts[terminalId].height,
+                zIndex: terminalLayouts[terminalId].isDragging ? 1000 : 1
+              }}
+            >
+              <CardHeader className="pb-3 cursor-move" onMouseDown={(e) => handleMouseDown(e, terminalId, 'drag')}>
+                <CardTitle className="flex items-center justify-between text-lg">
+                  <div className="flex items-center">
+                    {getTerminalIcon(terminalId)}
+                    <span className="ml-2">{getTerminalTitle(terminalId)}</span>
+                  </div>
+                  {/* Delete button for dynamic terminals */}
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteTerminal(terminalId)
+                    }}
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                  >
+                    <Square className="w-4 h-4" />
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Terminal Output */}
+                <div 
+                  className="bg-black border border-gray-600 rounded p-3 overflow-y-auto font-mono text-sm mb-3"
+                  style={{ height: terminalLayouts[terminalId].height - 200 }}
+                >
+                  <div className="text-gray-500">
+                    <div className="text-sm font-semibold mb-2">🚀 New Terminal</div>
+                    <div className="text-xs">
+                      This is a new {dynamicTerminals[terminalId].type} terminal.
+                      <br />
+                      Start collaborating with other terminals!
+                    </div>
+                  </div>
+                </div>
+
+                {/* Command Input */}
+                <div className="flex gap-2 relative">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={dynamicTerminals[terminalId].input}
+                      onChange={(e) => {
+                        setDynamicTerminals(prev => ({
+                          ...prev,
+                          [terminalId]: {
+                            ...prev[terminalId],
+                            input: e.target.value
+                          }
+                        }))
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          executeCommand(terminalId)
+                        }
+                      }}
+                      placeholder="Enter command..."
+                      className="bg-black border-gray-600 text-gray-300 placeholder-gray-500"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => executeCommand(terminalId)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Play className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    onClick={() => deleteTerminal(terminalId)}
+                    size="sm"
+                    variant="outline"
+                    className="text-red-400 border-red-400 hover:bg-red-400 hover:text-black"
+                  >
+                    <Square className="w-4 h-4" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -979,15 +1392,7 @@ function App() {
             <p>📎 <strong>Attachments:</strong> Click 📎 in input field for screenshot and voice input</p>
           </div>
           
-          <div className="mt-4 text-xs">
-            <p><strong>🔗 MCP Inter-Terminal Communication:</strong></p>
-            <p>📤 <strong>@terminal2 Hello there</strong> - Send message to another terminal</p>
-            <p>🔄 <strong>{'>>'}terminal3 ls -la</strong> - Route command to another terminal</p>
-            <p>🔧 <strong>mcp broadcast "Important update"</strong> - Broadcast to all terminals</p>
-            <p>🤝 <strong>collab terminal1 "Help me debug this code"</strong> - Request collaboration</p>
-            <p>💾 <strong>mcp set_shared_data {"{'key': 'value'}"}</strong> - Share data between terminals</p>
-            <p>📖 <strong>mcp get_shared_data</strong> - Retrieve shared data</p>
-          </div>
+
         </div>
 
         {/* Settings Panel */}
@@ -997,6 +1402,15 @@ function App() {
         />
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   )
 }
 
