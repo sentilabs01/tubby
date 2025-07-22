@@ -11,9 +11,19 @@ export function parseInput(rawInput = "") {
 
   // MCP Communication Patterns
   const mcpPatterns = [
-    // Send message to another terminal
+    // Send message to another terminal (multiple formats)
     {
       pattern: /^@(terminal[123]|gemini[12]|system)\s+(.+)$/i,
+      type: "message",
+      parse: (match) => ({
+        target: match[1],
+        message: match[2],
+        type: "message"
+      })
+    },
+    // Alternative message format: "send to terminal2: message"
+    {
+      pattern: /^send\s+to\s+(terminal[123]|gemini[12]|system)[:\s]+(.+)$/i,
       type: "message",
       parse: (match) => ({
         target: match[1],
@@ -24,6 +34,16 @@ export function parseInput(rawInput = "") {
     // Route command to another terminal
     {
       pattern: /^>>(terminal[123]|gemini[12]|system)\s+(.+)$/i,
+      type: "route",
+      parse: (match) => ({
+        target: match[1],
+        command: match[2],
+        type: "route"
+      })
+    },
+    // Alternative route format: "run in terminal2: command"
+    {
+      pattern: /^run\s+in\s+(terminal[123]|gemini[12]|system)[:\s]+(.+)$/i,
       type: "route",
       parse: (match) => ({
         target: match[1],
@@ -49,6 +69,42 @@ export function parseInput(rawInput = "") {
         partner: match[1],
         task: match[2],
         type: "collaboration"
+      })
+    },
+    // Alternative collaboration format: "work with terminal2 on task"
+    {
+      pattern: /^work\s+with\s+(terminal[123]|gemini[12]|system)\s+on\s+(.+)$/i,
+      type: "collaboration",
+      parse: (match) => ({
+        partner: match[1],
+        task: match[2],
+        type: "collaboration"
+      })
+    },
+    // Broadcast to all terminals
+    {
+      pattern: /^broadcast\s+(.+)$/i,
+      type: "broadcast",
+      parse: (match) => ({
+        message: match[1],
+        type: "broadcast"
+      })
+    },
+    // Share data between terminals
+    {
+      pattern: /^share\s+(.+)$/i,
+      type: "share",
+      parse: (match) => ({
+        data: match[1],
+        type: "share"
+      })
+    },
+    // Get shared data
+    {
+      pattern: /^get\s+shared\s+data$/i,
+      type: "get_shared",
+      parse: () => ({
+        type: "get_shared"
       })
     }
   ]

@@ -307,7 +307,7 @@ def auth_callback():
                 
                 if (access_token) {{
                     // Send token to backend via POST
-                    fetch('http://localhost:5004/auth/callback', {{
+                    fetch(window.location.origin + '/auth/callback', {{
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',
