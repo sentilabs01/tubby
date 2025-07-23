@@ -1,10 +1,15 @@
 version: 1
 frontend:
+  env:
+    variables:
+      VITE_API_URL: $VITE_API_URL
+      FRONTEND_URL: $FRONTEND_URL
   phases:
     preBuild:
       commands:
-        - echo "VITE_API_URL during build = $VITE_API_URL"
-        - echo "FRONTEND_URL during build = $FRONTEND_URL"
+        - echo "exporting variables for vite"
+        - export VITE_API_URL=$VITE_API_URL
+        - export FRONTEND_URL=$FRONTEND_URL
         - npm ci
     build:
       commands:
