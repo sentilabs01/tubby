@@ -1,4 +1,4 @@
-# 🔧 Stripe Checkout Session Fix Guide
+﻿# 🔧 Stripe Checkout Session Fix Guide
 
 ## Issues Identified
 
@@ -84,8 +84,8 @@ BACKEND_URL=https://api.tubbyai.com
 ALLOWED_ORIGINS=https://tubbyai.com,http://localhost:3001
 
 # Stripe Configuration (already working)
-STRIPE_PUBLISHABLE_KEY=pk_live_51RnFitKoB6ANfJLNwqnyzDzOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
-STRIPE_SECRET_KEY=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
+STRIPE_PUBLISHABLE_KEY=pk_live_your-stripe-publishable-keyOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
+STRIPE_SECRET_KEY=sk_live_your-stripe-secret-keymR9W4gkAPJSqb2xLEHtZdE76khA7tX4j7U0WZZzNy310Zi4eWdnhGQX8JTKYALrf000F7MNxVVx
 ```
 
 ### Development Environment Variables

@@ -1,4 +1,4 @@
-# 🔧 Tubby AI Configuration Reference
+﻿# 🔧 Tubby AI Configuration Reference
 
 ## 📋 **Current Status Summary**
 
@@ -25,7 +25,7 @@ Service Role Key: [Invalid]
 ### **Working Configuration (ewrbezytnhuovvmkepeg project):**
 ```
 URL: https://ewrbezytnhuovvmkepeg.supabase.co ✅
-Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3cmJlenl0bmh1b3Z2bWtlcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5NzQ5NzQsImV4cCI6MjA0NzU1MDk3NH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+Anon Key: your-supabase-anon-key
 Service Role Key: [NEED TO GET FROM DASHBOARD]
 ```
 
@@ -40,14 +40,14 @@ Service Role Key: [NEED TO GET FROM DASHBOARD]
 
 ### **Google OAuth:**
 ```
-Client ID: 117261848322-rgs0fd2fsk2emdgcd0jhjv4380rcmibh.apps.googleusercontent.com
-Client Secret: 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
+Client ID: your-google-client-id.apps.googleusercontent.com
+Client Secret: your-google-client-secret
 ```
 
 ### **GitHub OAuth:**
 ```
-Client ID: Ov231i0VjZz21dCiQ9oj
-Client Secret: 21962b4c088c2d402bb45209c929b58ab93f88ec
+Client ID: your-github-client-id
+Client Secret: your-github-client-secret
 ```
 
 ### **Required Redirect URLs:**
@@ -86,8 +86,8 @@ Client Secret: 21962b4c088c2d402bb45209c929b58ab93f88ec
 
 ### **Current (Working) Configuration:**
 ```
-Secret Key: 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
-Publishable Key: pk_live_51RnFitKoB6ANfJLNwqnyzDzOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
+Secret Key: sk_live_your-stripe-secret-keymR9W4gkAPJSqb2xLEHtZdE76khA7tX4j7U0WZZzNy310Zi4eWdnhGQX8JTKYALrf000F7MNxVVx
+Publishable Key: pk_live_your-stripe-publishable-keyOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
 ```
 
 ### **Price IDs:**
@@ -105,18 +105,18 @@ Enterprise: price_1RnI9FKoB6ANfJLNWZTZ5M8A ($99.99)
 ```env
 # Supabase (NEEDS UPDATE)
 SUPABASE_URL=https://ewrbezytnhuovvmkepeg.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3cmJlenl0bmh1b3Z2bWtlcGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE5NzQ5NzQsImV4cCI6MjA0NzU1MDk3NH0.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+SUPABASE_ANON_KEY=your-supabase-anon-key
 SUPABASE_SERVICE_ROLE_KEY=[NEED TO GET]
 
 # OAuth
-GOOGLE_CLIENT_ID=117261848322-rgs0fd2fsk2emdgcd0jhjv4380rcmibh.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
-GITHUB_CLIENT_ID=Ov231i0VjZz21dCiQ9oj
-GITHUB_CLIENT_SECRET=21962b4c088c2d402bb45209c929b58ab93f88ec
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
 
 # Stripe
-STRIPE_SECRET_KEY=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
-STRIPE_PUBLISHABLE_KEY=pk_live_51RnFitKoB6ANfJLNwqnyzDzOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
+STRIPE_SECRET_KEY=sk_live_your-stripe-secret-keymR9W4gkAPJSqb2xLEHtZdE76khA7tX4j7U0WZZzNy310Zi4eWdnhGQX8JTKYALrf000F7MNxVVx
+STRIPE_PUBLISHABLE_KEY=pk_live_your-stripe-publishable-keyOsUMH2Ie6b7SBOvZucOAUFkyPo0PqCsqZmLZq2Kqpzp3qLQa65KQ0jlrLWP3kXSRp00A1NZSjVt
 STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
 STRIPE_PRO_PRICE_ID=price_1RnI8LKoB6ANfJLNRNuYrViX
 STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNWZTZ5M8A

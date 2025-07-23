@@ -1,4 +1,4 @@
-# Tubby AI – Local & Production Configuration Cheat Sheet
+﻿# Tubby AI – Local & Production Configuration Cheat Sheet
 
 > Keep this file up-to-date whenever OAuth endpoints, ports, or environment variables change. It is **the single source of truth** for running Tubby locally or in production.
 
@@ -33,11 +33,11 @@ $env:SUPABASE_ANON_KEY         = "<full-anon-key>"
 $env:SUPABASE_SERVICE_ROLE_KEY = "<full-service-role-key>"
 
 # ── Google OAuth ─────────────────────────
-$env:GOOGLE_CLIENT_ID     = "117261848322-rgs0fd2fsk2emdgcd0jhjv4380rcmibh.apps.googleusercontent.com"
+$env:GOOGLE_CLIENT_ID     = "your-google-client-id.apps.googleusercontent.com"
 $env:GOOGLE_CLIENT_SECRET = "<secret>"
 
 # ── GitHub OAuth ─────────────────────────
-$env:GITHUB_CLIENT_ID     = "Ov231i0VjZz21dCiQ9oj"
+$env:GITHUB_CLIENT_ID     = "your-github-client-id"
 $env:GITHUB_CLIENT_SECRET = "<secret>"
 
 # ── Stripe ───────────────────────────────
@@ -110,8 +110,8 @@ Follow these steps to configure and verify Stripe in your local development setu
 ### A. Environment Variables (PowerShell)
 ```powershell
 # Replace with your actual Stripe test or live keys
-$env:STRIPE_SECRET_KEY          = "sk_test_XXXXXXXXXXXXXXXXXXXXXXXX"
-$env:STRIPE_PUBLISHABLE_KEY     = "pk_test_XXXXXXXXXXXXXXXXXXXXXXXX"
+$env:STRIPE_SECRET_KEY          = "sk_test_your-stripe-secret-key"
+$env:STRIPE_PUBLISHABLE_KEY     = "pk_test_your-stripe-publishable-key"
 $env:STRIPE_WEBHOOK_SECRET      = "whsec_XXXXXXXXXXXXXXXXXXXXXXXX"    # optional until testing webhooks
 
 # Price IDs for your Tubby plans (from Stripe Dashboard)
