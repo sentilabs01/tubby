@@ -32,8 +32,6 @@ backend:
     baseDirectory: backend
     files:
       - '**/*'
-    - path: /backend/*
-      target: /
   cache:
     paths:
       - backend/__pycache__/**/*
