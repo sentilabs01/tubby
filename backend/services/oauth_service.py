@@ -24,7 +24,12 @@ class OAuthService:
         self.jwt_expiration_hours = int(os.getenv('JWT_EXPIRATION_HOURS', 24))
         
         # Initialize Supabase client
-        supabase_url = os.getenv('SUPABASE_URL', 'https://bemssfbadcfrvsbgjlua.supabase.co')
+        supabase_url = os.getenv("SUPABASE_URL")
+        if not supabase_url:
+            raise RuntimeError(
+                "SUPABASE_URL is not set – cannot start OAuth service.\n"
+                "See LOCAL_DEV_SETUP.md > Environment Variables."
+            )
         supabase_key = os.getenv('SUPABASE_ANON_KEY', 'placeholder_key')
         
         try:
@@ -116,22 +121,28 @@ class OAuthService:
         except jwt.InvalidTokenError:
             return None
     
-    def get_supabase_auth_url(self, provider='google'):
-        """Get Supabase OAuth URL for the specified provider"""
+    def get_supabase_auth_url(self, provider='google', frontend_origin: str | None = None):
+        """Return the Supabase OAuth URL for the given provider.
+
+        We let callers pass the browser's **Origin** header so the same backend
+        works with any local port (4173-4177, 3001, etc.) and in production.
+        If no origin is provided we fall back to FRONTEND_URL or localhost:3001.
+        """
+
         if not self.supabase:
             return None
-            
+
         try:
-            # Use the correct frontend URL based on current setup
-            frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
-            redirect_url = f"{frontend_url}/auth/callback"
-            
-            print(f"Generating auth URL for {provider} with redirect: {redirect_url}")
-            
+            # Derive redirect URL
+            base = (frontend_origin or os.getenv('FRONTEND_URL', 'http://localhost:3001')).rstrip('/')
+            redirect_url = f"{base}/auth/callback"
+
+            print(f"Generating auth URL for {provider} with redirect_to = {redirect_url}")
+
             auth_url = self.supabase.auth.sign_in_with_oauth({
                 'provider': provider,
                 'options': {
-                    'redirect_to': redirect_url
+                    'redirectTo': redirect_url     # ← camelCase
                 }
             })
             return auth_url.url
