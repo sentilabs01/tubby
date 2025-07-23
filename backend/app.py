@@ -37,8 +37,8 @@ except ValueError:
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config["SESSION_COOKIE_SAMESITE"] = "None"
+app.config["SESSION_COOKIE_SECURE"]  = True      # cookie only over HTTPS
 
 # Force development mode for local testing
 os.environ['FLASK_ENV'] = 'development'
