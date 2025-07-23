@@ -7,7 +7,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "exporting variables for vite"
+        - echo "exporting VITE vars"
         - export VITE_API_URL=$VITE_API_URL
         - export FRONTEND_URL=$FRONTEND_URL
         - npm ci
@@ -19,5 +19,4 @@ frontend:
     files:
       - '**/*'
   cache:
-    paths:
-      - node_modules/**/* 
+    paths: [] 
