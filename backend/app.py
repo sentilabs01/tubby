@@ -15,23 +15,88 @@ from supabase_client import supabase_manager
 from services.oauth_service import OAuthService
 from services.user_service import UserService
 from services.stripe_service import StripeService
+import shutil
+from pathlib import Path
+import platform
 
-# Load .env from parent directory (project root)
+# Programmatically ensure backend/.env exists by copying from project root env.example
+env_path = Path(__file__).parent / '.env'
+example_path = Path(__file__).parent.parent / 'env.example'
+if not env_path.exists() and example_path.exists():
+    shutil.copy(example_path, env_path)
+
+# Load local backend .env for development (ensure it's UTF-8, no nulls)
+load_dotenv('.env')  # load backend/.env
+
+# (Optional) Load project root .env for additional vars
 try:
     load_dotenv('../.env')
-except Exception:
-    pass  # Use defaults if .env file doesn't exist or can't be loaded
+except ValueError:
+    # skip files with embedded nulls
+    pass
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 
+# Force development mode for local testing
+os.environ['FLASK_ENV'] = 'development'
+
 # Configure CORS
-CORS(app, origins=['http://localhost:3001', 'http://localhost:3003', 'http://localhost:3010', 'http://localhost:3015', 'http://localhost:4173'], 
+CORS(app, origins=['http://localhost:3001', 'http://localhost:3003', 'http://localhost:3010', 'http://localhost:3015', 'http://localhost:4173', 'https://tubbyai.com'], 
      supports_credentials=True, methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
-socketio = SocketIO(app, cors_allowed_origins="*")
+# Simple test route
+@app.route('/ping')
+def ping():
+    print("🐛 /ping route called!")
+    return "pong"
+
+@app.route('/hello')
+def hello():
+    print("🐛 /hello route called!")
+    try:
+        return "Hello, Flask is working!"
+    except Exception as e:
+        print(f"❌ Error in /hello: {e}")
+        return str(e), 500
+
+@app.route('/test-stripe-simple')
+def test_stripe_simple():
+    """Simple test if Stripe can be imported"""
+    try:
+        import stripe
+        return jsonify({
+            'status': 'success',
+            'message': 'Stripe imported successfully',
+            'stripe_file': stripe.__file__
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test-stripe')
+def test_stripe():
+    """Test if Stripe SDK is working"""
+    print("🐛 /test-stripe route called!")
+    try:
+        import stripe
+        print(f"Stripe version: {stripe.__version__}")
+        print(f"Stripe file: {stripe.__file__}")
+        print(f"Has checkout: {hasattr(stripe, 'checkout')}")
+        if hasattr(stripe, 'checkout'):
+            print(f"Has Session: {hasattr(stripe.checkout, 'Session')}")
+        return jsonify({
+            'stripe_version': stripe.__version__,
+            'stripe_file': stripe.__file__,
+            'has_checkout': hasattr(stripe, 'checkout'),
+            'has_session': hasattr(stripe.checkout, 'Session') if hasattr(stripe, 'checkout') else False
+        })
+    except Exception as e:
+        print(f"❌ Error in /test-stripe: {e}")
+        return jsonify({'error': str(e)}), 500
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")  # avoid eventlet conflicts on Windows
 
 # Redis connection
 redis_client = redis.Redis(host='redis', port=6379, decode_responses=True)
@@ -42,9 +107,20 @@ GEMINI_CLI_URL_1 = os.getenv('GEMINI_CLI_URL_1', 'http://localhost:8001')
 GEMINI_CLI_URL_2 = os.getenv('GEMINI_CLI_URL_2', 'http://localhost:8002')
 
 # Initialize authentication services
+print("🔧 Initializing OAuth service...")
 oauth_service = OAuthService()
+print("🔧 Initializing User service...")
 user_service = UserService()
+print("🔧 Initializing Stripe service...")
 stripe_service = StripeService()
+print("✅ All services initialized")
+
+# Debug route to test if Flask is working
+@app.route('/debug')
+def debug_route():
+    """Debug route to test if Flask is working"""
+    print("🐛 Debug route hit!")
+    return jsonify({'message': 'Flask is working!', 'timestamp': datetime.now().isoformat()})
 
 # Authentication decorator
 def require_auth(f):
@@ -180,7 +256,8 @@ def delete_api_key(service):
 def google_auth():
     """Initiate Google OAuth flow"""
     try:
-        auth_url = oauth_service.get_supabase_auth_url('google')
+        origin = request.headers.get('Origin') or request.headers.get('Referer')
+        auth_url = oauth_service.get_supabase_auth_url('google', origin)
         if auth_url:
             return redirect(auth_url)
         else:
@@ -198,7 +275,7 @@ def google_auth():
                         <li>Or use "Continue as Guest" for now</li>
                     </ol>
                     <br><br>
-                    <a href="http://localhost:3007" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
+                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3001')}" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
                 </div>
             </body>
             </html>
@@ -212,7 +289,7 @@ def google_auth():
                 <h1>⚠️ OAuth Configuration Error</h1>
                 <p>There was an error configuring OAuth: {str(e)}</p>
                 <br><br>
-                <a href="http://localhost:3007" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
+                <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3001')}" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
             </div>
         </body>
         </html>
@@ -222,7 +299,8 @@ def google_auth():
 def github_auth():
     """Initiate GitHub OAuth flow"""
     try:
-        auth_url = oauth_service.get_supabase_auth_url('github')
+        origin = request.headers.get('Origin') or request.headers.get('Referer')
+        auth_url = oauth_service.get_supabase_auth_url('github', origin)
         if auth_url:
             return redirect(auth_url)
         else:
@@ -240,7 +318,7 @@ def github_auth():
                         <li>Or use "Continue as Guest" for now</li>
                     </ol>
                     <br><br>
-                    <a href="http://localhost:3007" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
+                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3001')}" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
                 </div>
             </body>
             </html>
@@ -254,7 +332,7 @@ def github_auth():
                 <h1>⚠️ OAuth Configuration Error</h1>
                 <p>There was an error configuring OAuth: {str(e)}</p>
                 <br><br>
-                <a href="http://localhost:3007" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
+                <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3001')}" style="color: #3b82f6; text-decoration: none;">← Back to Login</a>
             </div>
         </body>
         </html>
@@ -290,6 +368,7 @@ def auth_callback():
     # Return a page that will extract the token from the fragment and send it to us
     if not access_token:
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3001')
+        backend_url = os.getenv('BACKEND_URL', 'http://localhost:5004')
         return f'''
         <!DOCTYPE html>
         <html>
@@ -310,7 +389,7 @@ def auth_callback():
                 
                 if (access_token) {{
                     // Send token to backend via POST
-                    fetch('http://localhost:5004/auth/callback', {{
+                    fetch('{backend_url}/auth/callback', {{
                         method: 'POST',
                         headers: {{
                             'Content-Type': 'application/json',
@@ -325,7 +404,7 @@ def auth_callback():
                     .then(data => {{
                         if (data.success) {{
                             // Redirect to frontend with success
-                            window.location.href = window.location.origin + '/?auth=success';
+                            window.location.href = '{frontend_url}/?auth=success';
                         }} else {{
                             alert('Authentication failed: ' + (data.error || 'Unknown error'));
                         }}
@@ -457,8 +536,10 @@ def get_current_user():
 def create_checkout_session():
     """Create Stripe checkout session with comprehensive validation"""
     try:
+        print("🔍 Starting create_checkout_session...")
         data = request.get_json()
         plan_type = data.get('plan_type')
+        print(f"📋 Plan type: {plan_type}")
         
         # Validate plan type
         if not plan_type or plan_type not in ['basic', 'pro', 'enterprise']:
@@ -466,6 +547,7 @@ def create_checkout_session():
         
         # Get user information
         user_id = request.current_user.get('user_id') or request.current_user.get('id')
+        print(f"👤 User ID: {user_id}")
         if not user_id:
             return jsonify({'error': 'User ID not found'}), 400
         
@@ -477,23 +559,30 @@ def create_checkout_session():
         base_url = request.url_root.rstrip('/')
         success_url = f"{base_url}/subscription/success"
         cancel_url = f"{base_url}/subscription/cancel"
+        print(f"🔗 Success URL: {success_url}")
+        print(f"🔗 Cancel URL: {cancel_url}")
         
         # Create checkout session
+        print("🛒 Creating Stripe checkout session...")
         session = stripe_service.create_checkout_session(
             user_id, plan_type, success_url, cancel_url
         )
         
         if session:
+            print(f"✅ Checkout session created: {session.id}")
             return jsonify({
                 'checkout_url': session.url,
                 'session_id': session.id
             })
         else:
+            print("❌ Failed to create checkout session")
             return jsonify({'error': 'Failed to create checkout session'}), 500
             
     except Exception as e:
-        print(f"Error in create_checkout_session: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        print(f"❌ Error in create_checkout_session: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/stripe/subscription-status')
 @require_auth
@@ -835,7 +924,14 @@ def index():
 @app.route('/health')
 def health_check():
     """Simple health check endpoint"""
+    print("🏥 Health check endpoint hit!")
     return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/test')
+def test_endpoint():
+    """Test endpoint to verify backend is receiving requests"""
+    print("🧪 Test endpoint hit!")
+    return jsonify({'message': 'Backend is working!', 'timestamp': datetime.now().isoformat()})
 
 @app.route('/debug/supabase')
 def debug_supabase():
@@ -1527,10 +1623,23 @@ def handle_command(data):
             'terminal': terminal_type
         })
 
+# Debug: Print all registered routes
+print("🔍 Registered routes:")
+for rule in app.url_map.iter_rules():
+    print(f"  {rule.rule} -> {rule.endpoint}")
+
 if __name__ == '__main__':
+    # Read host/port from environment
     try:
-        socketio.run(app, host='0.0.0.0', port=5004, debug=False, allow_unsafe_werkzeug=True)
-    except Exception as e:
-        print(f"Error starting server: {e}")
-        # Fallback to regular Flask
-        app.run(host='0.0.0.0', port=5004, debug=False) 
+        port = int(os.getenv('PORT', '5004'))  # Back to 5004
+    except ValueError:
+        port = 5004
+    if platform.system().lower().startswith('win'):
+        # On Windows, always bind to localhost and ignore HOST env var
+        win_host = '127.0.0.1'
+        print(f"Windows detected: binding to {win_host}:{port}")
+        socketio.run(app, host=win_host, port=port, debug=False, allow_unsafe_werkzeug=True)
+    else:
+        # In other environments, use HOST env var or default to 0.0.0.0
+        host = os.getenv('HOST', '0.0.0.0')
+        socketio.run(app, host=host, port=port, debug=False, allow_unsafe_werkzeug=True) 
