@@ -7,7 +7,7 @@ import { Settings, Key, Save, Trash2, User, LogOut } from 'lucide-react'
 import { useAuth } from '../src/components/AuthManager.jsx'
 
 // Backend URL configuration
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
+const BACKEND_URL = import.meta.env.VITE_API_URL
 
 const SettingsPanel = ({ isOpen, onClose }) => {
   const { currentUser, isAuthenticated, logout } = useAuth()

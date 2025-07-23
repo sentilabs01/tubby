@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge.jsx'
 import { Alert, AlertDescription } from '../../components/ui/alert.jsx'
 import { Check, Crown, Zap, Star, AlertCircle } from 'lucide-react'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
+const BACKEND_URL = import.meta.env.VITE_API_URL
 
 const SubscriptionPlans = () => {
   const { currentUser, isAuthenticated, isGuest } = useAuth()

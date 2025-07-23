@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
+const BACKEND_URL = import.meta.env.VITE_API_URL
 
 const AuthCallback = () => {
   const [status, setStatus] = useState('Processing...')

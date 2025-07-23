@@ -92,7 +92,7 @@ const SignUp = ({ onSwitchToLogin }) => {
     setError(null);
     
     // Redirect to OAuth provider
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const backendUrl = import.meta.env.VITE_API_URL;
     window.location.href = `${backendUrl}/auth/${provider}`;
   };
 
@@ -101,7 +101,7 @@ const SignUp = ({ onSwitchToLogin }) => {
     setError(null);
 
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const backendUrl = import.meta.env.VITE_API_URL;
       const response = await fetch(`${backendUrl}/auth/guest`, {
         method: 'POST',
         credentials: 'include'

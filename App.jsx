@@ -86,7 +86,7 @@ function MainApp() {
 
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io('http://localhost:5004', {
+    const newSocket = io(import.meta.env.VITE_API_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
@@ -767,7 +767,7 @@ function MainApp() {
         formData.append('audio', blob)
         
         try {
-          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5004'
+          const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL
           const response = await fetch(`${BACKEND_URL}/api/whisper/transcribe`, {
             method: 'POST',
             credentials: 'include',
@@ -1182,7 +1182,7 @@ function MainApp() {
                               <div className="text-gray-500">Terminal 1 will: gemini --prompt "Generate OpenAPI spec for our /api/user CRUD endpoints."</div>
                               <div>collab terminal1 "Got the spec—please turn it into Markdown API docs."</div>
                               <div>gemini --prompt "Write a README.md section showing example requests/responses."</div>
-                              <div className="text-gray-500">Then System will: curl http://localhost:5004/api/user --show-status</div>
+                              <div className="text-gray-500">Then System will: curl {import.meta.env.VITE_API_URL || 'http://localhost:5004'}/api/user --show-status</div>
                               <div className="text-gray-500">Then System will: mcp broadcast "200 OK, endpoint live"</div>
                             </div>
                           </details>
