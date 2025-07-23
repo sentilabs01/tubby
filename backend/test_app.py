@@ -1,22 +1,29 @@
 from flask import Flask, jsonify
+from datetime import datetime
 
 app = Flask(__name__)
 
 @app.route('/')
-def home():
-    return "Hello World!"
+def index():
+    return jsonify({
+        "message": "Tubby AI Backend Test App",
+        "status": "running",
+        "timestamp": datetime.now().isoformat()
+    })
 
-@app.route('/ping')
-def ping():
-    return "pong"
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    })
 
 @app.route('/test')
 def test():
-    return jsonify({"message": "Test endpoint working!"})
+    return jsonify({
+        "message": "Test endpoint working!",
+        "timestamp": datetime.now().isoformat()
+    })
 
 if __name__ == '__main__':
-    print("Starting minimal Flask test app...")
-    print("Routes:")
-    for rule in app.url_map.iter_rules():
-        print(f"  {rule.rule} -> {rule.endpoint}")
-    app.run(host='127.0.0.1', port=5004, debug=True) 
+    app.run(host='0.0.0.0', port=5004, debug=False) 
