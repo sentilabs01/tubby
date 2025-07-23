@@ -8,23 +8,23 @@ export default defineConfig({
     port: 3001,
     proxy: {
       '/api': {
-        target: 'http://localhost:5004',
+        target: process.env.VITE_API_URL || 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       },
       '/auth': {
-        target: 'http://localhost:5004',
+        target: process.env.VITE_API_URL || 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       },
       '/socket.io': {
-        target: 'http://localhost:5004',
+        target: process.env.VITE_API_URL || 'http://localhost:5004',
         changeOrigin: true,
         ws: true,
         secure: false
       },
       '/stripe': {
-        target: 'http://localhost:5004',
+        target: process.env.VITE_API_URL || 'http://localhost:5004',
         changeOrigin: true,
         secure: false
       }
@@ -33,5 +33,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets'
+  },
+  define: {
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL)
   }
 }) 
