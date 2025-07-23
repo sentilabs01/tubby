@@ -1,0 +1,40 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - echo "VITE_API_URL during build = $VITE_API_URL"
+        - echo "FRONTEND_URL during build = $FRONTEND_URL"
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - dist/**/*
+
+backend:
+  phases:
+    preBuild:
+      commands:
+        - cd backend
+        - python -m pip install --upgrade pip
+        - pip install -r requirements_production.txt
+    build:
+      commands:
+        - echo "Backend build completed"
+  artifacts:
+    baseDirectory: backend
+    files:
+      - '**/*'
+    - path: /backend/*
+      target: /
+  cache:
+    paths:
+      - backend/__pycache__/**/*
+      - backend/.venv/**/* 
