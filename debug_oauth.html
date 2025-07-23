@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .debug { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #007bff; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        .warning { border-left-color: #ffc107; background: #fff3cd; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        pre { background: #e9ecef; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .url { word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>🔍 OAuth Debug Tool</h1>
+    
+    <div class="debug">
+        <h3>Current Page Info:</h3>
+        <p><strong>URL:</strong> <span class="url" id="currentUrl"></span></p>
+        <p><strong>Hash:</strong> <span id="currentHash"></span></p>
+        <p><strong>Search:</strong> <span id="currentSearch"></span></p>
+    </div>
+    
+    <div>
+        <button onclick="debugOAuth()">🔍 Debug OAuth Flow</button>
+        <button onclick="testDirectSupabase()">🚀 Test Direct Supabase</button>
+        <button onclick="checkSupabaseConfig()">⚙️ Check Supabase Config</button>
+        <button onclick="clearDebug()">🗑️ Clear</button>
+    </div>
+    
+    <div id="debugOutput"></div>
+    
+    <script>
+        const SUPABASE_URL = 'https://bemssfbadcfrvsbgjlua.supabase.co';
+        
+        function debugLog(message, type = 'info') {
+            const output = document.getElementById('debugOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = `debug ${type}`;
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }
+        
+        function updatePageInfo() {
+            document.getElementById('currentUrl').textContent = window.location.href;
+            document.getElementById('currentHash').textContent = window.location.hash || '(none)';
+            document.getElementById('currentSearch').textContent = window.location.search || '(none)';
+        }
+        
+        function debugOAuth() {
+            debugLog('🔍 Starting OAuth debug...');
+            
+            // Check current URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            
+            debugLog(`📋 URL Parameters: ${urlParams.toString() || '(none)'}`);
+            debugLog(`📋 Hash Parameters: ${hashParams.toString() || '(none)'}`);
+            
+            // Check for common OAuth parameters
+            const error = urlParams.get('error') || hashParams.get('error');
+            const errorDescription = urlParams.get('error_description') || hashParams.get('error_description');
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            
+            if (error) {
+                debugLog(`❌ OAuth Error: ${error}`, 'error');
+                debugLog(`❌ Error Description: ${errorDescription}`, 'error');
+            }
+            
+            if (accessToken) {
+                debugLog(`✅ Access Token Found: ${accessToken.substring(0, 20)}...`, 'success');
+                try {
+                    const parts = accessToken.split('.');
+                    const payload = JSON.parse(atob(parts[1]));
+                    debugLog(`👤 User: ${payload.email}`, 'success');
+                    debugLog(`🆔 ID: ${payload.sub}`, 'success');
+                } catch (e) {
+                    debugLog(`❌ Token decode failed: ${e.message}`, 'error');
+                }
+            }
+            
+            if (refreshToken) {
+                debugLog(`🔄 Refresh Token Found: ${refreshToken.substring(0, 20)}...`, 'success');
+            }
+        }
+        
+        function testDirectSupabase() {
+            debugLog('🚀 Testing direct Supabase OAuth...');
+            
+            // Test different redirect URLs
+            const redirectUrls = [
+                'http://localhost:3001/debug_oauth.html',
+                'http://localhost:3001/',
+                'http://localhost:3001/test_auth.html',
+                'https://tubbyai.com/auth/callback',
+                'https://tubbyai.com/'
+            ];
+            
+            redirectUrls.forEach((url, index) => {
+                const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(url)}`;
+                debugLog(`🔗 Test ${index + 1}: ${authUrl}`, 'warning');
+            });
+            
+            // Use the first one for actual test
+            const redirectUrl = 'http://localhost:3001/debug_oauth.html';
+            const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+            
+            debugLog(`🚀 Redirecting to: ${authUrl}`);
+            window.location.href = authUrl;
+        }
+        
+        function checkSupabaseConfig() {
+            debugLog('⚙️ Checking Supabase configuration...');
+            
+            // Try to fetch Supabase configuration
+            fetch(`${SUPABASE_URL}/auth/v1/settings`)
+                .then(response => {
+                    debugLog(`📡 Supabase settings response: ${response.status}`, response.ok ? 'success' : 'error');
+                    return response.json();
+                })
+                .then(data => {
+                    debugLog(`⚙️ Supabase settings: ${JSON.stringify(data, null, 2)}`, 'success');
+                })
+                .catch(error => {
+                    debugLog(`❌ Failed to fetch Supabase settings: ${error.message}`, 'error');
+                });
+        }
+        
+        function clearDebug() {
+            document.getElementById('debugOutput').innerHTML = '';
+        }
+        
+        // Initialize
+        updatePageInfo();
+        debugLog('🚀 OAuth Debug Tool initialized');
+        debugLog(`📍 Current URL: ${window.location.href}`);
+        
+        // Check for OAuth parameters on page load
+        setTimeout(() => {
+            debugOAuth();
+        }, 1000);
+    </script>
+</body>
+</html> 

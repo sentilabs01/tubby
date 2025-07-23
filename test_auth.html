@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tubby AI - Auth Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #3367d6;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .user-info {
+            background: #e2e3e5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Tubby AI Authentication Test</h1>
+        
+        <div id="status" class="status info">
+            Ready to test authentication
+        </div>
+        
+        <div id="userInfo" class="user-info" style="display: none;">
+            <h3>👤 User Information</h3>
+            <div id="userDetails"></div>
+        </div>
+        
+        <div>
+            <button class="button" onclick="testGoogleAuth()">🔑 Test Google OAuth</button>
+            <button class="button" onclick="testGithubAuth()">🐙 Test GitHub OAuth</button>
+            <button class="button" onclick="clearAuth()">🗑️ Clear Auth</button>
+            <button class="button" onclick="checkCurrentAuth()">🔍 Check Current Auth</button>
+        </div>
+        
+        <div id="logs" style="margin-top: 20px;">
+            <h3>📋 Logs</h3>
+            <pre id="logOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bemssfbadcfrvsbgjlua.supabase.co';
+        
+        function log(message) {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function showUserInfo(userData) {
+            const userInfo = document.getElementById('userInfo');
+            const userDetails = document.getElementById('userDetails');
+            
+            userDetails.innerHTML = `
+                <p><strong>ID:</strong> ${userData.id}</p>
+                <p><strong>Email:</strong> ${userData.email}</p>
+                <p><strong>Name:</strong> ${userData.name}</p>
+                <p><strong>Provider:</strong> ${userData.provider}</p>
+                <p><strong>Verified:</strong> ${userData.verified_email ? 'Yes' : 'No'}</p>
+            `;
+            
+            userInfo.style.display = 'block';
+        }
+        
+        function processTokenFrontend(access_token) {
+            try {
+                log('🔍 Processing token in frontend...');
+                
+                // Decode JWT token
+                const tokenParts = access_token.split('.');
+                if (tokenParts.length !== 3) {
+                    throw new Error('Invalid token format');
+                }
+                
+                const payload = JSON.parse(atob(tokenParts[1]));
+                log('✅ Token decoded successfully');
+                
+                // Extract user data from token
+                const userData = {
+                    id: payload.sub || payload.user_id || payload.id,
+                    email: payload.email || 'unknown@example.com',
+                    name: payload.name || payload.email?.split('@')[0] || 'Unknown',
+                    picture: payload.picture,
+                    provider: payload.provider || 'google',
+                    verified_email: payload.email_confirmed_at ? true : false
+                };
+                
+                log('👤 User data extracted: ' + JSON.stringify(userData, null, 2));
+                
+                // Store user data in localStorage
+                localStorage.setItem('tubby_user', JSON.stringify(userData));
+                localStorage.setItem('tubby_token', access_token);
+                
+                showUserInfo(userData);
+                updateStatus('✅ Authentication successful!', 'success');
+                
+                return userData;
+            } catch (error) {
+                log('❌ Frontend token processing failed: ' + error.message);
+                updateStatus('❌ Token processing failed', 'error');
+                throw error;
+            }
+        }
+        
+        function testGoogleAuth() {
+            log('🚀 Starting Google OAuth test...');
+            updateStatus('🔄 Redirecting to Google OAuth...', 'info');
+            
+            const redirectUrl = `${window.location.origin}${window.location.pathname}`;
+            const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+            
+            log('🔗 OAuth URL: ' + authUrl);
+            window.location.href = authUrl;
+        }
+        
+        function testGithubAuth() {
+            log('🚀 Starting GitHub OAuth test...');
+            updateStatus('🔄 Redirecting to GitHub OAuth...', 'info');
+            
+            const redirectUrl = `${window.location.origin}${window.location.pathname}`;
+            const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent(redirectUrl)}`;
+            
+            log('🔗 OAuth URL: ' + authUrl);
+            window.location.href = authUrl;
+        }
+        
+        function clearAuth() {
+            log('🗑️ Clearing authentication data...');
+            localStorage.removeItem('tubby_user');
+            localStorage.removeItem('tubby_token');
+            document.getElementById('userInfo').style.display = 'none';
+            updateStatus('✅ Authentication data cleared', 'success');
+        }
+        
+        function checkCurrentAuth() {
+            log('🔍 Checking current authentication...');
+            
+            const storedUser = localStorage.getItem('tubby_user');
+            const storedToken = localStorage.getItem('tubby_token');
+            
+            if (storedUser && storedToken) {
+                const userData = JSON.parse(storedUser);
+                log('✅ Found authenticated user: ' + userData.email);
+                showUserInfo(userData);
+                updateStatus('✅ User is authenticated', 'success');
+            } else {
+                log('❌ No authentication data found');
+                updateStatus('❌ No user authenticated', 'error');
+            }
+        }
+        
+        // Check for hash-based authentication tokens on page load
+        function handleHashChange() {
+            const hash = window.location.hash.substring(1);
+            if (hash && hash.includes('access_token')) {
+                log('🔍 Found authentication tokens in URL hash');
+                
+                const params = new URLSearchParams(hash);
+                const access_token = params.get('access_token');
+                const refresh_token = params.get('refresh_token');
+                
+                if (access_token) {
+                    log('✅ Processing access token...');
+                    try {
+                        processTokenFrontend(access_token);
+                        
+                        // Clear the hash from URL
+                        window.location.hash = '';
+                    } catch (error) {
+                        log('❌ Failed to process token: ' + error.message);
+                    }
+                }
+            }
+        }
+        
+        // Initialize
+        log('🚀 Tubby AI Authentication Test initialized');
+        handleHashChange();
+        checkCurrentAuth();
+    </script>
+</body>
+</html> 

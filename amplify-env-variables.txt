@@ -1,0 +1,90 @@
+# 🚀 Complete Environment Variables for Tubby AI Amplify Deployment
+# Copy these to your Amplify Console → App Settings → Environment Variables
+
+# =============================================================================
+# FRONTEND VARIABLES (Vite)
+# =============================================================================
+
+VITE_API_URL=https://api.tubbyai.com
+
+# =============================================================================
+# BACKEND VARIABLES (Flask)
+# =============================================================================
+
+# Flask Configuration
+FLASK_ENV=production
+SECRET_KEY=your-secure-secret-key-here
+PORT=5004
+HOST=0.0.0.0
+
+# Supabase Configuration
+SUPABASE_URL=your-supabase-url
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# OAuth Configuration
+GOOGLE_CLIENT_ID=117261848322-rgs0fd2fsk2emdgcd0jhjv4380rcmibh.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=Ov23li0VjZz21dCiQ9oj
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Stripe Configuration
+STRIPE_PUBLISHABLE_KEY=your-stripe-publishable-key
+STRIPE_SECRET_KEY=your-stripe-secret-key
+STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
+STRIPE_PRO_PRICE_ID=price_1RnI8LBKoB6ANfJLNRNUyRVIX
+STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNwZTZ5M8A
+
+# Redis Configuration
+REDIS_HOST=your-redis-host
+REDIS_PORT=6379
+
+# Container URLs
+GEMINI_CLI_URL_1=http://localhost:8001
+GEMINI_CLI_URL_2=http://localhost:8002
+
+# CORS Configuration
+ALLOWED_ORIGINS=https://tubbyai.com,http://localhost:3001
+
+# Backend URL (for OAuth callbacks)
+BACKEND_URL=https://api.tubbyai.com
+FRONTEND_URL=https://tubbyai.com
+
+# =============================================================================
+# HOW TO USE THESE VARIABLES
+# =============================================================================
+
+# 1. Go to AWS Amplify Console: https://console.aws.amazon.com/amplify/
+# 2. Select your Tubby AI app
+# 3. Go to App Settings → Environment Variables
+# 4. Add each variable above (copy the Key and Value)
+# 5. Replace "your-*" values with your actual credentials
+# 6. Save and redeploy
+
+# =============================================================================
+# REQUIRED CREDENTIALS TO REPLACE
+# =============================================================================
+
+# Replace these with your actual values:
+# - your-secure-secret-key-here (generate a secure random string)
+# - your-supabase-url (from your Supabase project settings)
+# - your-supabase-anon-key (from your Supabase project settings)
+# - your-supabase-service-role-key (from your Supabase project settings)
+# - your-google-client-secret (from Google Cloud Console)
+# - your-github-client-secret (from GitHub OAuth App settings)
+# - your-stripe-publishable-key (from Stripe Dashboard)
+# - your-stripe-secret-key (from Stripe Dashboard)
+# - your-stripe-webhook-secret (from Stripe Dashboard)
+# - your-redis-host (your Redis instance URL)
+
+# =============================================================================
+# ALREADY CONFIGURED VALUES
+# =============================================================================
+
+# These are already set correctly:
+# - GOOGLE_CLIENT_ID=117261848322-rgs0fd2fsk2emdgcd0jhjv4380rcmibh.apps.googleusercontent.com
+# - GITHUB_CLIENT_ID=Ov23li0VjZz21dCiQ9oj
+# - STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
+# - STRIPE_PRO_PRICE_ID=price_1RnI8LBKoB6ANfJLNRNUyRVIX
+# - STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNwZTZ5M8A 

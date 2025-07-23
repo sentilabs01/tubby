@@ -1,0 +1,93 @@
+services:
+  # MCP Router
+  mcp-router:
+    build:
+      context: ./containers/mcp-router
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Main application
+  ai-agent-platform:
+    build: .
+    ports:
+      - "3002:5001"
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - redis
+      - gemini-cli-container-1
+      - gemini-cli-container-2
+    networks:
+      - ai-agent-network
+
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ai-agent-network
+
+  # Gemini CLI Container 1 (Primary)
+  gemini-cli-container-1:
+    build:
+      context: ./containers/gemini-cli
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MCP_PORT=8001
+    ports:
+      - "8001:8001"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Gemini CLI Container 2 (Secondary)
+  gemini-cli-container-2:
+    build:
+      context: ./containers/gemini-cli
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MCP_PORT=8002
+    ports:
+      - "8002:8002"
+    networks:
+      - ai-agent-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+
+volumes:
+  redis_data:
+
+networks:
+  ai-agent-network:
+    driver: bridge

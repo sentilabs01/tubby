@@ -1,0 +1,51 @@
+# Production Environment Variables Template
+# Copy these to AWS Elastic Beanstalk Console → Your Environment → Configuration → Software → Environment properties
+
+# Core Configuration
+FLASK_ENV=production
+PORT=5004
+HOST=0.0.0.0
+SECRET_KEY=your-secret-key-here-change-this
+
+# Frontend and Backend URLs (CRITICAL - Replace with your actual URLs)
+FRONTEND_URL=https://your-amplify-domain.amplifyapp.com
+BACKEND_URL=https://your-eb-environment.elasticbeanstalk.com
+
+# Supabase Configuration (Replace with your actual values)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+
+# OAuth Configuration (Replace with your actual values)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Stripe Configuration (Replace with your actual values)
+STRIPE_PUBLISHABLE_KEY=pk_test_your-stripe-publishable-key
+STRIPE_SECRET_KEY=sk_test_your-stripe-secret-key
+STRIPE_WEBHOOK_SECRET=whsec_your-stripe-webhook-secret
+STRIPE_BASIC_PRICE_ID=price_1RnI7vKoB6ANfJLNft6upLIC
+STRIPE_PRO_PRICE_ID=price_1RnI8LBKoB6ANfJLNRNUyRVIX
+STRIPE_ENTERPRISE_PRICE_ID=price_1RnI9FKoB6ANfJLNwZTZ5M8A
+
+# CORS Configuration
+ALLOWED_ORIGINS=https://your-amplify-domain.amplifyapp.com,https://tubbyai.com,https://www.tubbyai.com
+
+# =============================================================================
+# INSTRUCTIONS:
+# =============================================================================
+# 1. Replace all "your-*" values with your actual values
+# 2. Go to AWS Console → Elastic Beanstalk → Your Environment
+# 3. Click "Configuration" → "Software" → "Edit"
+# 4. Add each variable in the "Environment properties" section
+# 5. Click "Apply" to save
+# =============================================================================
+
+# To find your URLs:
+# - Amplify URL: Go to AWS Amplify Console → Your App → Domain
+# - EB URL: Go to AWS Elastic Beanstalk Console → Your Environment → Domain
+# - Supabase URL: Go to Supabase Dashboard → Settings → API
+# - OAuth IDs: Check your Google Cloud Console and GitHub OAuth App settings
+# - Stripe Keys: Check your Stripe Dashboard → Developers → API keys 

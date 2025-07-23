@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Simple Authentication Test</h1>
+    
+    <div>
+        <button onclick="startAuth()">Start Google OAuth</button>
+        <button onclick="checkHash()">Check URL Hash</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div id="log" class="log"></div>
+    
+    <script>
+        const SUPABASE_URL = 'https://bemssfbadcfrvsbgjlua.supabase.co';
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(message);
+        }
+        
+        function startAuth() {
+            log('🚀 Starting OAuth...');
+            
+            // Use the exact same redirect URL as the main app
+            const redirectUrl = 'http://localhost:3001/test_auth.html';
+            const authUrl = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUrl)}`;
+            
+            log(`🔗 Redirect URL: ${redirectUrl}`);
+            log(`🔗 Full OAuth URL: ${authUrl}`);
+            
+            window.location.href = authUrl;
+        }
+        
+        function checkHash() {
+            const hash = window.location.hash;
+            log(`🔍 Current hash: ${hash}`);
+            
+            if (hash && hash.includes('access_token')) {
+                log('✅ Found access_token in hash!', 'success');
+                
+                const params = new URLSearchParams(hash.substring(1));
+                const access_token = params.get('access_token');
+                const refresh_token = params.get('refresh_token');
+                
+                log(`🔑 Access token: ${access_token ? access_token.substring(0, 20) + '...' : 'none'}`);
+                log(`🔄 Refresh token: ${refresh_token ? refresh_token.substring(0, 20) + '...' : 'none'}`);
+                
+                if (access_token) {
+                    try {
+                        // Decode JWT
+                        const parts = access_token.split('.');
+                        const payload = JSON.parse(atob(parts[1]));
+                        log('✅ Token decoded successfully!', 'success');
+                        log(`👤 User: ${payload.email}`);
+                        log(`🆔 ID: ${payload.sub}`);
+                    } catch (error) {
+                        log(`❌ Token decode failed: ${error.message}`, 'error');
+                    }
+                }
+            } else {
+                log('❌ No access_token found in hash', 'error');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // Check hash on page load
+        log('🚀 Page loaded');
+        checkHash();
+    </script>
+</body>
+</html> 
