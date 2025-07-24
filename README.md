@@ -492,6 +492,22 @@ If you don't have API keys, the containers will still run but CLI functionality 
 - If you encounter `AttributeError: deleted`, restart the backend to load the latest code
 - All payment processing features are working correctly
 
+## Critical Error: useRoutes() Context Issue
+
+### Error Description
+The application encounters an error: "useRoutes() may be used only in the context of a `<Router>` component." This indicates that routing logic is being used outside of a `<Router>`.
+
+### Troubleshooting Steps Taken
+1. **Verified `App.jsx` Setup:** Ensured that the `<Router>` is correctly wrapping the `<Routes>` component.
+2. **Checked for External Libraries:** Ensured no external libraries are interfering with the routing setup.
+3. **Cleared Node Modules and Cache:** Attempted to clear the `node_modules` directory and reinstall dependencies.
+4. **Rebuilt the Project:** Restarted the development server to ensure no stale code is causing the issue.
+5. **Searched for `useRoutes`:** Verified that no instances of `useRoutes` are incorrectly used in the codebase.
+
+### Next Steps
+- Consider seeking external help or restarting the project setup.
+- Review any additional components or libraries that might affect routing.
+
 ## 🛑 Stopping the Application
 
 ```bash
