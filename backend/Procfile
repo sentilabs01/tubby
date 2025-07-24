@@ -1,1 +1,1 @@
-﻿web: gunicorn minimal_test:app
+﻿web: gunicorn simple_test:app

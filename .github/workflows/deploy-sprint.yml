@@ -1,0 +1,186 @@
+name: 🚀 TubbyAI Sprint Deployment
+
+on:
+  push:
+    branches: [ main, develop, sprint/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      deployment_type:
+        description: 'Deployment Type'
+        required: true
+        default: '7zip'
+        type: choice
+        options:
+        - 7zip
+        - docker
+        - git
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - staging
+        - production
+
+env:
+  AWS_REGION: us-east-1
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    name: 🧪 Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install Python dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        pip install pytest
+        
+    - name: Install Node.js dependencies
+      run: npm ci
+      
+    - name: Run backend tests
+      run: |
+        cd backend
+        python -m pytest tests/ -v
+        
+    - name: Run frontend tests
+      run: npm run test
+      
+    - name: Build frontend
+      run: npm run build:prod
+
+  deploy-backend:
+    name: 📦 Deploy Backend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Create deployment package
+      run: |
+        cd backend
+        zip -r ../tubby-backend-${{ github.run_number }}.zip . -x "*.git*" "*.pyc" "__pycache__/*" "tests/*"
+        
+    - name: Deploy to Elastic Beanstalk
+      run: |
+        # Get AWS account info
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        BUCKET="elasticbeanstalk-${{ env.AWS_REGION }}-$ACCOUNT_ID"
+        
+        # Upload to S3
+        aws s3 cp tubby-backend-${{ github.run_number }}.zip s3://$BUCKET/tubby-backend-${{ github.run_number }}.zip
+        
+        # Create application version
+        aws elasticbeanstalk create-application-version \
+          --application-name tubbyai \
+          --version-label sprint-v-${{ github.run_number }} \
+          --source-bundle S3Bucket=$BUCKET,S3Key=tubby-backend-${{ github.run_number }}.zip
+        
+        # Deploy to environment
+        aws elasticbeanstalk update-environment \
+          --environment-name tubby-${{ github.event.inputs.environment || 'development' }} \
+          --version-label sprint-v-${{ github.run_number }}
+
+  deploy-frontend:
+    name: 🌐 Deploy Frontend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build frontend
+      run: npm run build:prod
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Deploy to Amplify
+      run: |
+        # Check if Amplify app exists
+        if aws amplify get-app --app-id ${{ secrets.AMPLIFY_APP_ID }} 2>/dev/null; then
+          # Deploy to existing app
+          aws amplify start-job \
+            --app-id ${{ secrets.AMPLIFY_APP_ID }} \
+            --branch-name main \
+            --job-type RELEASE
+        else
+          echo "Amplify app not found. Manual deployment required."
+        fi
+
+  notify:
+    name: 📢 Notify Team
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Create deployment summary
+      run: |
+        echo "# 🚀 TubbyAI Sprint Deployment Summary" > deployment-summary.md
+        echo "" >> deployment-summary.md
+        echo "**Deployment Date:** $(date)" >> deployment-summary.md
+        echo "**Commit:** ${{ github.sha }}" >> deployment-summary.md
+        echo "**Branch:** ${{ github.ref }}" >> deployment-summary.md
+        echo "" >> deployment-summary.md
+        echo "## Results" >> deployment-summary.md
+        echo "- Backend: ${{ needs.deploy-backend.result }}" >> deployment-summary.md
+        echo "- Frontend: ${{ needs.deploy-frontend.result }}" >> deployment-summary.md
+        
+    - name: Upload summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: deployment-summary
+        path: deployment-summary.md 

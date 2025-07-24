@@ -133,21 +133,12 @@ class OAuthService:
             return None
 
         try:
-<<<<<<< HEAD
-            # Derive redirect URL
-            base = (frontend_origin or os.getenv('FRONTEND_URL', 'http://localhost:3001')).rstrip('/')
-            redirect_url = f"{base}/auth/callback"
-
-            print(f"Generating auth URL for {provider} with redirect_to = {redirect_url}")
-
-=======
             # Use the correct frontend URL based on current setup
             frontend_url = os.getenv('FRONTEND_URL', 'https://tubbyai.com')
             redirect_url = f"{frontend_url}/auth/callback"
             
             print(f"Generating auth URL for {provider} with redirect: {redirect_url}")
-            
->>>>>>> 2a86997 (Add frontend fallback authentication processing)
+
             auth_url = self.supabase.auth.sign_in_with_oauth({
                 'provider': provider,
                 'options': {
